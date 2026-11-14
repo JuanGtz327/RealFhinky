@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { IDatabase } from "@/lib/db/adapter";
 import { Transaction, TransactionType } from "@/lib/types";
-import { expandMsi } from "@/lib/utils/msi";
+import { expandMsi, billingStartDate } from "@/lib/utils/msi";
 
 export interface CreateTransactionInput {
   account_id: string;
@@ -51,16 +51,36 @@ export class TransactionsRepository {
     return rows[0] ? this.deserialize(rows[0]) : null;
   }
 
+  /** Calcula el delta que una transacción aplica al saldo de la cuenta. */
+  private balanceDelta(type: TransactionType, amount: number, accountType?: string): number {
+    // Para crédito: compra = sube deuda (+), pago recibido (transfer_in) = baja deuda (-)
+    if (accountType === "credit" || accountType === "loan") {
+      return type === "transfer_in" ? -amount : amount;
+    }
+    // Para débito/inversión: depósito (+), retiro/gasto (-)
+    return (type === "transfer_in" || type === "income") ? amount : -amount;
+  }
+
   create(input: CreateTransactionInput): Transaction {
     const id = randomUUID();
     const now = new Date().toISOString();
     const isMsi = Boolean(input.is_msi && input.msi_months && input.msi_months > 1);
 
+    // Query account early — needed for cut_date (billing month) and balance delta
+    const account = this.db.query<{ type: string; cut_date: number | null }>(
+      "SELECT type, cut_date FROM accounts WHERE id = ?", [input.account_id]
+    )[0];
+
+    // For MSI: if purchase is after the cut date, first installment falls in the next month
+    const msiStartDate = (isMsi && input.msi_months && account?.cut_date)
+      ? billingStartDate(input.date, account.cut_date)
+      : input.date;
+
     let monthlyAmount: number | null = null;
     let residual: number | null = null;
 
     if (isMsi && input.msi_months) {
-      const { monthlyAmount: ma, residual: r } = expandMsi(input.amount, input.msi_months);
+      const { monthlyAmount: ma, residual: r } = expandMsi(input.amount, input.msi_months, msiStartDate);
       monthlyAmount = ma;
       residual = r;
     }
@@ -79,13 +99,13 @@ export class TransactionsRepository {
           isMsi ? 1 : 0,
           isMsi ? input.msi_months! : null,
           monthlyAmount, residual,
-          isMsi ? input.date : null,
+          isMsi ? msiStartDate : null,
           input.notes ?? null, now,
         ]
       );
 
       if (isMsi && input.msi_months) {
-        const installments = expandMsi(input.amount, input.msi_months).installments;
+        const installments = expandMsi(input.amount, input.msi_months, msiStartDate).installments;
         for (const inst of installments) {
           this.db.execute(
             `INSERT INTO msi_installments (id, transaction_id, account_id, month, amount, is_last)
@@ -94,6 +114,12 @@ export class TransactionsRepository {
           );
         }
       }
+
+      const delta = this.balanceDelta(input.type, input.amount, account?.type);
+      this.db.execute(
+        "UPDATE accounts SET current_balance = current_balance + ?, updated_at = ? WHERE id = ?",
+        [delta, now, input.account_id]
+      );
     });
 
     return this.findById(id)!;
@@ -116,7 +142,44 @@ export class TransactionsRepository {
   }
 
   delete(id: string): void {
-    this.db.execute("DELETE FROM transactions WHERE id = ?", [id]);
+    const tx = this.findById(id);
+    if (!tx) return;
+    const now = new Date().toISOString();
+    this.db.transaction(() => {
+      const account = this.db.query<{ type: string }>(
+        "SELECT type FROM accounts WHERE id = ?", [tx.account_id]
+      )[0];
+      // Revertir el delta aplicado al crear
+      const delta = -this.balanceDelta(tx.type, tx.amount, account?.type);
+      this.db.execute(
+        "UPDATE accounts SET current_balance = current_balance + ?, updated_at = ? WHERE id = ?",
+        [delta, now, tx.account_id]
+      );
+      this.db.execute("DELETE FROM transactions WHERE id = ?", [id]);
+    });
+  }
+
+  sumPurchasesByPeriod(accountId: string, periodStart: string, periodEnd: string): number {
+    const rows = this.db.query<{ total: number }>(
+      `SELECT COALESCE(SUM(amount), 0) as total
+       FROM transactions
+       WHERE account_id = ? AND date >= ? AND date <= ?
+         AND type IN ('purchase','transfer_out')
+         AND (is_msi = 0 OR is_msi IS NULL)`,
+      [accountId, periodStart, periodEnd]
+    );
+    return rows[0]?.total ?? 0;
+  }
+
+  sumCreditsByPeriod(accountId: string, periodStart: string, periodEnd: string): number {
+    const rows = this.db.query<{ total: number }>(
+      `SELECT COALESCE(SUM(amount), 0) as total
+       FROM transactions
+       WHERE account_id = ? AND date >= ? AND date <= ?
+         AND type = 'transfer_in'`,
+      [accountId, periodStart, periodEnd]
+    );
+    return rows[0]?.total ?? 0;
   }
 
   sumByAccountAndMonth(accountId: string, yearMonth: string): number {
@@ -124,7 +187,8 @@ export class TransactionsRepository {
       `SELECT COALESCE(SUM(amount), 0) as total
        FROM transactions
        WHERE account_id = ? AND strftime('%Y-%m', date) = ?
-         AND type IN ('purchase','transfer_out')`,
+         AND type IN ('purchase','transfer_out')
+         AND (is_msi = 0 OR is_msi IS NULL)`,
       [accountId, yearMonth]
     );
     return rows[0]?.total ?? 0;

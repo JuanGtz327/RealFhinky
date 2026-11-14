@@ -34,3 +34,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# database
+finkhy.db
+finkhy.db-shm
+finkhy.db-wal
+finkhy_seed.sql

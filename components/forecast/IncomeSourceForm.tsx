@@ -9,12 +9,16 @@ import { FormActions } from "@/components/ui/form-actions";
 import { z } from "zod";
 
 const schema = z.object({
-  name:        z.string().min(1, "Nombre requerido"),
-  frequency:   z.enum(["weekly", "biweekly", "monthly", "custom"]),
-  base_amount: z.coerce.number().min(0, "Monto requerido"),
-  is_variable: z.boolean().optional(),
-  start_date:  z.string().optional(),
-});
+  name:                 z.string().min(1, "Nombre requerido"),
+  frequency:            z.enum(["weekly", "biweekly", "monthly", "custom"]),
+  base_amount:          z.coerce.number().min(0, "Monto requerido"),
+  is_variable:          z.boolean().optional(),
+  start_date:           z.string().optional(),
+  custom_interval_days: z.coerce.number().int().min(1).optional(),
+}).refine(
+  (d) => d.frequency !== "custom" || (d.custom_interval_days != null && d.custom_interval_days >= 1),
+  { message: "Especifica cada cuántos días se repite", path: ["custom_interval_days"] }
+);
 
 type FormData = z.infer<typeof schema>;
 
@@ -44,7 +48,12 @@ export function IncomeSourceForm({ initial, mode = "create", onSuccess }: Income
           case "weekly":    return { label: "~4 pagos/mes", monthly: amt * 4 };
           case "biweekly":  return { label: "2 pagos/mes",  monthly: amt * 2 };
           case "monthly":   return { label: "1 pago/mes",   monthly: amt };
-          case "custom":    return { label: "variable",     monthly: amt };
+          case "custom": {
+            const days = form.custom_interval_days;
+            if (!days) return { label: "personalizado", monthly: amt };
+            const times = Math.round(30 / days);
+            return { label: `~${times}x / mes (cada ${days} días)`, monthly: amt * times };
+          }
           default:          return null;
         }
       })()
@@ -104,6 +113,18 @@ export function IncomeSourceForm({ initial, mode = "create", onSuccess }: Income
               </button>
             ))}
           </div>
+          {form.frequency === "custom" && (
+            <FormField label="Cada cuántos días" error={errors.custom_interval_days} className="mt-3">
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                placeholder="ej. 7, 14, 30"
+                value={form.custom_interval_days ?? ""}
+                onChange={(e) => set("custom_interval_days", parseInt(e.target.value) || undefined as unknown as number)}
+              />
+            </FormField>
+          )}
         </FormField>
 
         <div className="space-y-3">

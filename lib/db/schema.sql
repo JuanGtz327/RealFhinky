@@ -11,9 +11,10 @@ CREATE TABLE IF NOT EXISTS accounts (
   payment_due_date INTEGER,
   annual_fee       REAL,
   annual_fee_date  TEXT,
-  is_active        INTEGER NOT NULL DEFAULT 1,
-  created_at       TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+  is_active                  INTEGER NOT NULL DEFAULT 1,
+  opening_balance_carryover  REAL,
+  created_at                 TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at                 TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS transactions (
@@ -48,10 +49,11 @@ CREATE TABLE IF NOT EXISTS income_sources (
   name        TEXT NOT NULL,
   frequency   TEXT NOT NULL CHECK(frequency IN ('weekly','biweekly','monthly','custom')),
   base_amount REAL NOT NULL DEFAULT 0,
-  is_variable INTEGER NOT NULL DEFAULT 0,
-  is_active   INTEGER NOT NULL DEFAULT 1,
-  start_date  TEXT,
-  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  is_variable           INTEGER NOT NULL DEFAULT 0,
+  is_active             INTEGER NOT NULL DEFAULT 1,
+  start_date            TEXT,
+  custom_interval_days  INTEGER,
+  created_at            TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS income_entries (
@@ -68,3 +70,8 @@ CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_msi_installments_month ON msi_installments(month);
 CREATE INDEX IF NOT EXISTS idx_msi_installments_account ON msi_installments(account_id);
 CREATE INDEX IF NOT EXISTS idx_income_entries_date ON income_entries(date);
+
+CREATE TABLE IF NOT EXISTS user_preferences (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);

@@ -113,7 +113,8 @@ describe("TransactionsRepository", () => {
     const installments = db.query<{ amount: number; is_last: number }>("SELECT * FROM msi_installments WHERE transaction_id = ? ORDER BY month", [tx.id]);
     const last = installments[installments.length - 1];
     expect(last.is_last).toBe(1);
-    expect(last.amount).toBeGreaterThan(installments[0].amount);
+    // El último mes absorbe el ajuste de redondeo — diferencia máxima de céntimos
+    expect(Math.abs(last.amount - installments[0].amount)).toBeLessThanOrEqual(12 * 0.005);
     const total = installments.reduce((s, i) => s + i.amount, 0);
     expect(total).toBeCloseTo(1250, 2);
   });

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Wallet, ArrowLeftRight } from "lucide-react";
+import { LayoutDashboard, Wallet, ArrowLeftRight, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuickActions } from "@/components/layout/QuickActions";
 
@@ -51,8 +51,21 @@ export function Navbar() {
           })}
         </nav>
 
-        {/* Acciones rápidas */}
-        <QuickActions />
+        {/* Acciones rápidas + Settings */}
+        <div className="ml-auto flex items-center gap-2">
+          <QuickActions />
+          <Link
+            href="/settings"
+            className={cn(
+              "flex items-center justify-center rounded-md p-1.5 transition-colors",
+              pathname.startsWith("/settings")
+                ? "bg-[var(--color-accent)] text-white"
+                : "text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
+            )}
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </header>
   );

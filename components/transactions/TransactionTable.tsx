@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { CurrencyCell } from "@/components/ui/currency-cell";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { formatMXN } from "@/lib/utils/formatters";
 import type { Transaction } from "@/lib/types";
 
 interface Account { id: string; name: string; bank: string; type: string }
@@ -79,7 +80,14 @@ export function TransactionTable({ transactions, accounts }: TransactionTablePro
       header: "Tipo",
       render: (v, row) => {
         if (row.is_msi) return (
-          <StatusBadge variant="msi">{row.msi_months as number} MSI</StatusBadge>
+          <div className="flex items-center gap-1.5">
+            <StatusBadge variant="msi">{row.msi_months as number} MSI</StatusBadge>
+            {row.msi_monthly_amount ? (
+              <span className="text-xs font-medium text-[var(--color-muted)]">
+                {formatMXN(row.msi_monthly_amount as number)}/mes
+              </span>
+            ) : null}
+          </div>
         );
         const type = v as string;
         const isIncome = type === "income" || type === "transfer_in";

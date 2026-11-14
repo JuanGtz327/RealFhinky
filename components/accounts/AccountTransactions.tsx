@@ -3,6 +3,7 @@
 import { DataTable, Column } from "@/components/ui/data-table";
 import { CurrencyCell } from "@/components/ui/currency-cell";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { formatMXN } from "@/lib/utils/formatters";
 import type { Transaction } from "@/lib/types";
 
 type Row = Record<string, unknown>;
@@ -34,7 +35,16 @@ export function AccountTransactions({ transactions }: { transactions: Transactio
       key: "is_msi",
       header: "Tipo",
       render: (v, row) => {
-        if (v) return <StatusBadge variant="msi">{row.msi_months as number}  MSI</StatusBadge>;
+        if (v) return (
+          <div className="flex items-center gap-1.5">
+            <StatusBadge variant="msi">{row.msi_months as number} MSI</StatusBadge>
+            {row.msi_monthly_amount ? (
+              <span className="text-xs font-medium text-[var(--color-muted)]">
+                {formatMXN(row.msi_monthly_amount as number)}/mes
+              </span>
+            ) : null}
+          </div>
+        );
         const type = row.type as string;
         if (type === "income" || type === "transfer_in")
           return <StatusBadge variant="ok">Ingreso</StatusBadge>;

@@ -8,6 +8,7 @@ export interface CreateIncomeSourceInput {
   base_amount: number;
   is_variable?: boolean;
   start_date?: string;
+  custom_interval_days?: number;
 }
 
 export interface CreateIncomeEntryInput {
@@ -36,15 +37,15 @@ export class IncomeRepository {
     const id = randomUUID();
     const now = new Date().toISOString();
     this.db.execute(
-      `INSERT INTO income_sources (id, name, frequency, base_amount, is_variable, is_active, start_date, created_at)
-       VALUES (?,?,?,?,?,1,?,?)`,
-      [id, input.name, input.frequency, input.base_amount, input.is_variable ? 1 : 0, input.start_date ?? null, now]
+      `INSERT INTO income_sources (id, name, frequency, base_amount, is_variable, is_active, start_date, custom_interval_days, created_at)
+       VALUES (?,?,?,?,?,1,?,?,?)`,
+      [id, input.name, input.frequency, input.base_amount, input.is_variable ? 1 : 0, input.start_date ?? null, input.custom_interval_days ?? null, now]
     );
     return this.findSourceById(id)!;
   }
 
   updateSource(id: string, input: Partial<CreateIncomeSourceInput> & { is_active?: boolean }): IncomeSource | null {
-    const allowed = ["name", "frequency", "base_amount", "is_variable", "is_active", "start_date"];
+    const allowed = ["name", "frequency", "base_amount", "is_variable", "is_active", "start_date", "custom_interval_days"];
     const fields: string[] = [];
     const values: unknown[] = [];
     for (const key of allowed) {

@@ -3,6 +3,7 @@ import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
 import { formatMXN } from "@/lib/utils/formatters";
+import { computeBillingPeriod } from "@/lib/utils/billing";
 import { format } from "date-fns";
 import { CardBreakdownTable } from "@/components/dashboard/CardBreakdownTable";
 import { YearSelector } from "@/components/ui/year-selector";
@@ -30,10 +31,17 @@ function BreakdownContent({ year }: { year: string }) {
       const monthStr = `${y}-${m}`;
       matrixByYear[y][monthStr] = {};
       for (const acc of creditAccounts) {
-        const isFuture = monthStr > CURRENT_MONTH;
-        matrixByYear[y][monthStr][acc.id] = isFuture
-          ? msiRepo.sumByAccountAndMonth(acc.id, monthStr)
-          : txRepo.sumByAccountAndMonth(acc.id, monthStr);
+        const { periodStart, periodEnd } = computeBillingPeriod(monthStr, acc.cut_date ?? null);
+        const purchases = txRepo.sumPurchasesByPeriod(acc.id, periodStart, periodEnd);
+        const msi       = msiRepo.sumByAccountAndMonth(acc.id, monthStr);
+        const credits   = txRepo.sumCreditsByPeriod(acc.id, periodStart, periodEnd);
+        // Anualidad si cae en este periodo
+        const annualFee =
+          acc.annual_fee && acc.annual_fee_date &&
+          acc.annual_fee_date >= periodStart && acc.annual_fee_date <= periodEnd
+            ? acc.annual_fee
+            : 0;
+        matrixByYear[y][monthStr][acc.id] = purchases + msi + annualFee - credits;
       }
     }
   }

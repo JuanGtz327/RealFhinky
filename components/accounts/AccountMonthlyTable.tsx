@@ -21,20 +21,35 @@ export function AccountMonthlyTable({ rows, isCredit }: { rows: MonthRow[]; isCr
     {
       key: "month",
       header: "Mes",
-      render: (v, row) => (
-        <span className={`font-medium capitalize ${row.isFuture ? "text-[var(--color-muted)]" : "text-[var(--color-foreground)]"}`}>
-          {formatMonthShort(String(v))}
-        </span>
-      ),
+      render: (v, row) => {
+        if (row.isCurrent) return (
+          <span className="flex items-center gap-2">
+            <span className="font-bold capitalize text-[var(--color-accent)]">
+              {formatMonthShort(String(v))}
+            </span>
+            <StatusBadge variant="accent">Actual</StatusBadge>
+          </span>
+        );
+        if (row.isFuture) return (
+          <span className="font-medium capitalize italic text-[var(--color-muted)]">
+            {formatMonthShort(String(v))}
+          </span>
+        );
+        return (
+          <span className="font-medium capitalize text-[var(--color-muted)]">
+            {formatMonthShort(String(v))}
+          </span>
+        );
+      },
     },
     ...(isCredit ? [
       {
         key: "real" as const,
         header: "Compras reales",
         align: "right" as const,
-        render: (v: unknown, row: Row) => row.isFuture
+        render: (v: unknown, row: Row) => (row.isFuture && Number(v) === 0)
           ? <span className="text-[var(--color-muted)] text-xs">—</span>
-          : <CurrencyCell amount={Number(v)} dimIfZero />,
+          : <span className={row.isFuture ? "italic" : ""}><CurrencyCell amount={Number(v)} dimIfZero /></span>,
       },
       {
         key: "msi" as const,
@@ -63,7 +78,7 @@ export function AccountMonthlyTable({ rows, isCredit }: { rows: MonthRow[]; isCr
     total: <CurrencyCell amount={yearTotal} />,
   };
   if (isCredit) {
-    footerRow.real = <CurrencyCell amount={rows.filter((r) => !r.isFuture).reduce((s, r) => s + r.real, 0)} />;
+    footerRow.real = <CurrencyCell amount={rows.reduce((s, r) => s + r.real, 0)} />;
     footerRow.msi  = <CurrencyCell amount={rows.reduce((s, r) => s + r.msi, 0)} />;
   }
 

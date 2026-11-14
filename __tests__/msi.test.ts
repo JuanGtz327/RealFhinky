@@ -11,14 +11,17 @@ describe("expandMsi", () => {
     expect(total).toBeCloseTo(1200, 2);
   });
 
-  it("calcula residual cuando no es divisible", () => {
-    // 1250 / 12 = 104 pesos enteros por mes, residual = 1250 - (104 * 12) = 2
+  it("calcula residual cuando no es divisible — redondea a 2 decimales", () => {
+    // 1250 / 12 = 104.1666… → base = 104.17, último absorbe el ajuste de redondeo
     const result = expandMsi(1250, 12, "2025-01-01");
-    expect(result.monthlyAmount).toBe(104);
-    expect(result.residual).toBeCloseTo(2, 2);
-    expect(result.installments[11].amount).toBeCloseTo(106, 2);
+    expect(result.monthlyAmount).toBeCloseTo(104.17, 2);
+    // El total siempre debe cuadrar exacto
     const total = result.installments.reduce((s, i) => s + i.amount, 0);
     expect(total).toBeCloseTo(1250, 2);
+    // La diferencia máxima entre el último mes y el resto es (meses-1) × 0.005
+    const base = result.installments[0].amount;
+    const last = result.installments[11].amount;
+    expect(Math.abs(last - base)).toBeLessThanOrEqual(12 * 0.005);
   });
 
   it("asigna el residual al último mes", () => {

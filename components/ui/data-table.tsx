@@ -51,12 +51,12 @@ export function DataTable<T extends Record<string, unknown>>({
     )}>
       <Table>
         <TableHeader>
-          <TableRow className="border-b border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface)]">
+          <TableRow className="border-b-2 border-[var(--color-accent)] bg-[var(--color-navbar)] hover:bg-[var(--color-navbar)]">
             {columns.map((col) => (
               <TableHead
                 key={col.key}
                 className={cn(
-                  "px-4 py-3 text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wide",
+                  "px-4 py-3 text-xs font-semibold text-white/70 uppercase tracking-wide",
                   alignClass[col.align ?? "left"],
                   col.className
                 )}
@@ -81,10 +81,11 @@ export function DataTable<T extends Record<string, unknown>>({
                 <TableRow
                   key={i}
                   className={cn(
-                    "border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-bg)] transition-colors",
-                    highlight === "current" && "bg-[var(--color-accent)]/5 border-l-4 border-l-[var(--color-accent)]",
-                    highlight === "projected" && "opacity-50 italic",
-                    highlight === "negative" && "bg-[var(--color-danger)]/5",
+                    "border-b border-[var(--color-border)] last:border-0 transition-colors",
+                    !highlight && "hover:bg-[var(--color-bg)]",
+                    highlight === "current"   && "row-highlight-current",
+                    highlight === "projected" && "opacity-60 italic hover:bg-[var(--color-bg)]",
+                    highlight === "negative"  && "row-highlight-negative",
                   )}
                 >
                   {columns.map((col, ci) => (

@@ -14,6 +14,7 @@ export interface Account {
   annual_fee?: number;
   annual_fee_date?: string;
   is_active: boolean;
+  opening_balance_carryover?: number;
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +58,7 @@ export interface IncomeSource {
   is_variable: boolean;
   is_active: boolean;
   start_date?: string;
+  custom_interval_days?: number;
   created_at: string;
 }
 

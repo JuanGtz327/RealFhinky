@@ -25,16 +25,10 @@ export async function GET(req: NextRequest) {
       matrix[monthStr] = {};
 
       for (const acc of creditAccounts) {
-        const isPast = monthStr < currentMonth;
-        const isCurrent = monthStr === currentMonth;
-
-        if (isPast || isCurrent) {
-          // Real: compras registradas
-          matrix[monthStr][acc.id] = txRepo.sumByAccountAndMonth(acc.id, monthStr);
-        } else {
-          // Futuro: solo cuotas MSI comprometidas
-          matrix[monthStr][acc.id] = msiRepo.sumByAccountAndMonth(acc.id, monthStr);
-        }
+        // Siempre: compras directas (non-MSI) + cuotas MSI del mes
+        const direct = txRepo.sumByAccountAndMonth(acc.id, monthStr);
+        const msi    = msiRepo.sumByAccountAndMonth(acc.id, monthStr);
+        matrix[monthStr][acc.id] = direct + msi;
       }
     }
 

@@ -1,6 +1,15 @@
 "use client";
 
-import { formatMXN } from "@/lib/utils/formatters";
+import { formatMXN, formatMonthLabel } from "@/lib/utils/formatters";
+import SmoothDrawer, { type OrderItem } from "@/components/kokonutui/smooth-drawer";
+import { Receipt } from "lucide-react";
+
+interface Installment {
+  month: string;
+  amount: number;
+  num: number;
+  paid: boolean;
+}
 
 interface MsiItem {
   id: string;
@@ -14,20 +23,37 @@ interface MsiItem {
   pendingTotal: number;
   startDate: string;
   date: string;
+  allInstallments: Installment[];
 }
 
 export function MsiActiveList({ items }: { items: MsiItem[] }) {
   return (
-    <div className="space-y-3">
+    <div className="divide-y divide-[var(--color-border)]">
       {items.map((item) => {
         const pct = Math.round((item.paid / item.months) * 100);
+
+        const drawerItems: OrderItem[] = item.allInstallments.map((inst) => ({
+          id:     `${item.id}-${inst.month}`,
+          name:   formatMonthLabel(inst.month),
+          detail: inst.paid ? "Ya pagado" : `Cuota ${inst.num} de ${item.months}`,
+          price:  inst.amount,
+          badge:  String(inst.num),
+          paid:   inst.paid,
+        }));
+
+        const pendingTotal = item.allInstallments
+          .filter((i) => !i.paid)
+          .reduce((s, i) => s + i.amount, 0);
+
         return (
-          <div key={item.id}
-            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+          <div key={item.id} className="px-4 py-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-[var(--color-foreground)] truncate">{item.merchant}</p>
-                <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                <div className="flex items-center gap-1.5">
+                  <Receipt className="w-3.5 h-3.5 text-[var(--color-muted)] shrink-0" />
+                  <p className="font-medium text-[var(--color-foreground)] truncate">{item.merchant}</p>
+                </div>
+                <p className="text-xs text-[var(--color-muted)] mt-0.5 pl-5">
                   {item.paid}/{item.months} cuotas pagadas · desde {item.date.substring(0, 7)}
                 </p>
               </div>
@@ -36,12 +62,11 @@ export function MsiActiveList({ items }: { items: MsiItem[] }) {
                   {formatMXN(item.nextAmount)}<span className="text-[var(--color-muted)] text-xs">/mes</span>
                 </p>
                 <p className="text-xs text-[var(--color-muted)]">
-                  Pendiente: {formatMXN(item.pendingTotal)}
+                  Pendiente: {formatMXN(pendingTotal)}
                 </p>
               </div>
             </div>
 
-            {/* Barra de progreso */}
             <div className="mt-3">
               <div className="flex justify-between text-xs text-[var(--color-muted)] mb-1">
                 <span>{item.remaining} cuotas restantes</span>
@@ -53,6 +78,17 @@ export function MsiActiveList({ items }: { items: MsiItem[] }) {
                   style={{ width: `${pct}%` }}
                 />
               </div>
+            </div>
+
+            <div className="mt-4">
+              <SmoothDrawer
+                title={item.merchant}
+                description={`${item.paid} pagadas · ${item.remaining} pendientes`}
+                items={drawerItems}
+                currency="MXN"
+                triggerLabel={`Ver todas las cuotas (${item.months}) →`}
+                confirmLabel="Cerrar"
+              />
             </div>
           </div>
         );

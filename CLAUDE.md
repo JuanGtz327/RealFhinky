@@ -31,15 +31,68 @@ Cambiar solo esos archivos para re-tematizar toda la app.
 
 ## Dominio: Decisiones clave
 - **MSI**: Se expanden en `msi_installments` al guardar la transacción.
-  - Cuota base = `floor(total / meses)`
-  - Residual = `total - (cuota_base * meses)` → se suma al último mes
+  - Cuota base = `Math.round(total / meses * 100) / 100` (precisión decimal, NO floor)
+  - Residual = `total - (cuota_base * (meses-1))` → último mes absorbe el ajuste
+  - `expandMsi(amount, months, startDate)` — el tercer argumento `startDate` es OBLIGATORIO; sin él las cuotas quedan en meses incorrectos
+- **Tipos de transacción y semántica**:
+  - `income` — ingreso externo a cuenta débito (nómina, transferencia recibida de tercero). Suma al saldo.
+  - `purchase` — gasto/cargo. Crédito: sube deuda. Débito: resta saldo.
+  - `transfer_in` — pago recibido en tarjeta de crédito (reduce deuda) o entrada desde cuenta propia a débito. Neutral en dashboard global.
+  - `transfer_out` — salida desde débito hacia otra cuenta propia. Neutral en dashboard global.
+  - **Regla**: solo `income` y `purchase` cuentan en el flujo del dashboard; `transfer_*` son neutrales (evitar double-count).
 - **Transferencias entre cuentas propias**: No cuentan como gasto ni ingreso en el dashboard global (evitar double-count)
 - **Columnas de préstamos**: Dinámicas — se genera una columna por cada cuenta `type=loan` activa
 - **Capital Fin Mes**: `Capital Inicio + Ingresos Totales - Gastos Totales`
+- **Capital Inicio (dashboard flow)**: Para el mes actual, anclar a `patrimonioActual` (suma de saldos reales de cuentas débito). Para meses futuros, proyectar acumulado.
+- **Proyección de ingresos futuros**: Se calcula desde `income_sources` usando `projectMonthlyIncome(source)`:
+  - weekly → base × 4; biweekly → base × 2; monthly → base × 1; custom → base × round(30/days)
 - **Proyección Anual débito**: `Capital × (yield_rate / 100)`
 - **Proyección Diaria débito**: `Proyección Anual / 365`
 - **% Utilización crédito**: Verde <30%, Amarillo 30-70%, Rojo >70%
+- **Discrepancia saldo crédito**: `finkhyBalance = Σ cuotas MSI pendientes (desde effectiveMonth) + compras directas no-MSI − transfer_in + opening_balance_carryover`. `balanceDiff = account.current_balance − finkhyBalance`. Positivo → gastos no rastreados en Finkhy. Negativo → diferencia de redondeo MSI. Umbral: >$1 MXN muestra `ShieldAlert` warning; ≤$1 muestra `ShieldCheck` verde.
+- **effectiveMonth**: Si hoy > `cut_date`, el ciclo de facturación activo ya cerró → usar el SIGUIENTE mes como referencia. Si hoy ≤ `cut_date`, usar el mes actual. Se usa en `isCurrent`/`isFuture` de la tabla mensual, MSI activos pendientes, y ciclos de corte. Fórmula: `(account.cut_date && today.getDate() > account.cut_date) ? addMonths(today, 1) : today`.
+- **Período de facturación vs mes calendario**: Distintos `cut_date` → distintos rangos de fecha para el mismo mes. Usar `computeBillingPeriod(cycleMonth, cutDay)` de `lib/utils/billing.ts` para obtener `periodStart`/`periodEnd` correctos por tarjeta. NUNCA asumir que el mes de facturación coincide con `strftime('%Y-%m', date)` al sumar gastos por ciclo.
+- **Desglose por tarjeta**: cada celda de la matriz usa `computeBillingPeriod` por cuenta. Siempre sumar: `purchases (period) + msi (billing month) + annual_fee (si cae en period) − credits (transfer_in en period)`. NO usar solo el mes calendario.
+- **Anualidad en ciclos de corte**: Se inyecta automáticamente en `NextCyclePreview` si `annual_fee_date` cae dentro de `periodStart..periodEnd` y NO existe ya una transacción con `category = "Anualidad"` en ese rango. Se muestra como ítem proyectado con badge "Anualidad".
+- **transfer_in en tarjetas de crédito**: son abonos/devoluciones que reducen deuda. Se muestran en `NextCyclePreview` como créditos (verde, `−$amount`). En el desglose se restan del total del período. El label en el formulario es "Pago / Abono / Devolución".
 - **Moneda**: Solo MXN, formato `$#,###.00`
+
+## Schema DB — Cambios recientes
+- `accounts` → columna `opening_balance_carryover REAL` (arrastre opaco al onboardear)
+- `income_sources` → columna `custom_interval_days INTEGER` (para frecuencia custom)
+- `user_preferences` → tabla nueva (key TEXT PK, value TEXT) para preferencias UI
+- `UpdateAccountInput` incluye `opening_balance_carryover?: number`
+
+## Base de datos — Archivos y estado
+- **Archivos DB ignorados en git**: `finkhy.db`, `finkhy.db-shm`, `finkhy.db-wal`, `finkhy_seed.sql`
+- **Seed/dump**: `finkhy_seed.sql` en la raíz — dump SQLite completo del estado real (escenario con Amex, Banorte, BBVA, etc.). Regenerar con: `sqlite3 finkhy.db .dump > finkhy_seed.sql`
+- **Reconciliación de saldos**: Si `balanceDiff ≠ 0` y el banco ya tenía un crédito baked en el saldo inicial, la solución es: (1) agregar la transacción para que los ciclos queden correctos, (2) resetear `current_balance` manualmente via SQL UPDATE al valor real del banco. No agregar la transacción dos veces.
+
+## Tailwind v4 — Gotchas críticos
+- **No usar template literals para clases condicionales**: el JIT scanner no las detecta. Usar JSX ternario con elementos separados que tengan clases completas estáticas.
+  ```tsx
+  // MAL: className={`${paid ? "bg-green-500" : "bg-red-500"}`}
+  // BIEN:
+  {paid ? <span className="bg-[var(--color-success)]">…</span>
+        : <span className="bg-[var(--color-accent)]">…</span>}
+  ```
+- **CSS vars hex NO soportan modificador de opacidad de Tailwind**: `bg-[var(--color-accent)]/10` NO funciona cuando la variable está definida como hex (#E8643C). Tailwind necesita el valor en formato RGB para interpolar la opacidad. Solución: definir clases con `rgba()` directamente en `globals.css`:
+  ```css
+  .row-highlight-current       { background-color: rgba(232, 100, 60, 0.12); }
+  .row-highlight-current:hover { background-color: rgba(232, 100, 60, 0.18); }
+  .row-highlight-negative       { background-color: rgba(220, 38, 38, 0.05); }
+  .row-highlight-negative:hover { background-color: rgba(220, 38, 38, 0.08); }
+  ```
+  Estas clases están definidas en `globals.css` y usadas en `components/ui/data-table.tsx` para highlight de filas.
+- **CSS vars con fallback `m-(--var,0px)`**: la sintaxis de Tailwind v4 `m-(--drawer-inset,0px)` no siempre compila el var(). Para overrides de posición en drawers/modales, usar `!left-[30%] !right-[30%]` con `!important` directamente.
+- **base-ui Drawer** (`@base-ui/react/drawer`): NO es vaul. No tiene `activeSnapPoint`, `fadeFromIndex`, `setActiveSnapPoint`. El DrawerContent usa `data-[swipe-axis=y]:inset-x-0`; para centrarlo en desktop usar `sm:!left-[30%] sm:!right-[30%] sm:rounded-2xl`.
+
+## Componentes Kokonut UI instalados
+- `empty-state` — empty states con animación de entrada
+- `promise-toast` — sistema de toasts (provider + hook `useToast`)
+  - API: `useToast()` → `{ toast }`. `toast({ title, body, status })` — NO acepta `promise:`, `successTitle:` ni otras props.
+- `slide-to-confirm` — confirmación de acciones destructivas
+- `smooth-drawer` — bottom sheet con animación spring y dígitos rolling. Interfaz `OrderItem { id, name, detail?, price, quantity?, badge?, paid? }`
 
 ## Estructura de rutas
 ```
@@ -49,6 +102,7 @@ Cambiar solo esos archivos para re-tematizar toda la app.
 /accounts/[id]           → detalle de cuenta (crédito o débito)
 /transactions            → todas las transacciones (global)
 /forecast                → pronósticos de flujo de caja
+/settings                → configuración usuario (preferencias, export/import, reset/reseed)
 ```
 
 ## Dashboard Principal — 2 tablas principales + 3 widgets
@@ -120,7 +174,7 @@ The registry is set in components.json as "@kokonutui".
   `npx shadcn@latest add @kokonutui/<name>`
 - **Installed components are project code. Edit them in place — never wrap them.**
 - After installing, theme the component with Finkhy CSS variables (replace zinc/emerald/rose hardcoded colors).
-- Currently installed: `empty-state`, `promise-toast`, `slide-to-confirm`
+- Currently installed: `empty-state`, `promise-toast`, `slide-to-confirm`, `smooth-drawer`
 - Do NOT create custom components that duplicate what a Kokonut component already provides.
 
 ## Reglas de UI — Normalización estricta
@@ -197,11 +251,6 @@ Toda la UI sigue un sistema normalizado. Cada patrón visual tiene una sola fuen
 - Active tab: `bg-[var(--color-accent)] text-white font-bold` (orange pill)
 - Inactive: `text-[var(--color-accent)]` (orange text)
 - Logo icon: orange
-
-### Componentes Kokonut UI instalados
-- `empty-state` — empty states con animación de entrada
-- `promise-toast` — sistema de toasts (provider + hook `useToast`)
-- `slide-to-confirm` — confirmación de acciones destructivas
 
 ---
 
@@ -281,6 +330,10 @@ Toda la UI sigue un sistema normalizado. Cada patrón visual tiene una sola fuen
 - [x] 9.2 Filtros: cuenta, categoría, mes, MSI/normal
 - [x] 9.3 Formulario `AddTransactionForm` con lógica MSI automática al guardar
 - [x] 9.4 Badge MSI en tabla mostrando `cuota X/N meses`
+
+## Regla de entrega
+
+Antes de declarar completado: (1) confirmar que el cambio está en el componente correcto, (2) verificar normalización de UI (sin template literals para clases condicionales, solo CSS vars, `h-8` en inputs), (3) confirmar que compila sin errores.
 
 ### Fase 10 — Forecast `/forecast`
 - [x] 10.1 Formulario para configurar fuentes de ingreso (nombre, frecuencia, monto base, variable)

@@ -97,7 +97,11 @@ export function MonthlyFlowTable({ rows, loanColumns, currentMonth }: MonthlyFlo
       columns={columns}
       rows={flatRows}
       footerRow={footerRow}
-      highlightRow={(row) => (row.month === currentMonth ? "current" : null)}
+      highlightRow={(row) => {
+        if (row.month === currentMonth) return "current";
+        if (row.is_projected) return "projected";
+        return null;
+      }}
       emptyMessage="Sin datos para este año"
     />
   );

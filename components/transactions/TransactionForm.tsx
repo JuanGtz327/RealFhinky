@@ -34,12 +34,27 @@ interface TransactionFormProps {
 
 const NATIVE_SELECT = "select-field h-8 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] pl-2.5 pr-9 py-1 text-sm outline-none focus:ring-1 focus:ring-[var(--color-accent)] cursor-pointer";
 
-const TX_TYPES = [
-  { value: "purchase",     label: "Compra",        accounts: ["credit", "loan"] },
-  { value: "income",       label: "Ingreso",        accounts: ["debit", "investment"] },
-  { value: "transfer_out", label: "Transferencia salida", accounts: ["debit", "investment"] },
-  { value: "transfer_in",  label: "Transferencia entrada", accounts: ["debit", "investment"] },
-];
+const TX_TYPES_BY_ACCOUNT: Record<string, { value: string; label: string }[]> = {
+  credit: [
+    { value: "purchase",    label: "Compra / Cargo" },
+    { value: "transfer_in", label: "Pago / Abono / Devolución" },
+  ],
+  loan: [
+    { value: "purchase",    label: "Pago / Abono al préstamo" },
+  ],
+  debit: [
+    { value: "income",       label: "Ingreso externo" },
+    { value: "purchase",     label: "Gasto / Pago a tercero" },
+    { value: "transfer_out", label: "Transferencia a cuenta propia" },
+    { value: "transfer_in",  label: "Transferencia desde cuenta propia" },
+  ],
+  investment: [
+    { value: "income",       label: "Ingreso / Rendimiento" },
+    { value: "purchase",     label: "Retiro / Gasto" },
+    { value: "transfer_out", label: "Transferencia a cuenta propia" },
+    { value: "transfer_in",  label: "Transferencia desde cuenta propia" },
+  ],
+};
 
 const CATEGORIES = [
   "Supermercado", "Restaurantes", "Transporte", "Entretenimiento",
@@ -61,17 +76,15 @@ export function TransactionForm({ accounts, initial, mode = "create", onSuccess 
   });
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
 
+  const [customMsi, setCustomMsi] = useState(false);
+
   const selectedAccount = accounts.find((a) => a.id === form.account_id);
   const isCredit  = selectedAccount?.type === "credit" || selectedAccount?.type === "loan";
   const isMsi     = form.is_msi && isCredit;
 
-  const availableTypes = form.account_id
-    ? TX_TYPES.filter((t) =>
-        !selectedAccount || t.accounts.includes(selectedAccount.type) ||
-        (selectedAccount.type === "credit" && t.value === "purchase") ||
-        (selectedAccount.type === "loan"   && t.value === "purchase")
-      )
-    : TX_TYPES;
+  const availableTypes = selectedAccount
+    ? (TX_TYPES_BY_ACCOUNT[selectedAccount.type] ?? TX_TYPES_BY_ACCOUNT.debit)
+    : TX_TYPES_BY_ACCOUNT.debit;
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((p) => ({ ...p, [key]: value }));
@@ -80,7 +93,7 @@ export function TransactionForm({ accounts, initial, mode = "create", onSuccess 
 
   const msiPreview = isMsi && form.amount && form.msi_months
     ? (() => {
-        const base = Math.floor(form.amount / form.msi_months);
+        const base = Math.round(form.amount / form.msi_months * 100) / 100;
         const residual = Math.round((form.amount - base * form.msi_months) * 100) / 100;
         return { base, residual, last: base + residual };
       })()
@@ -120,7 +133,13 @@ export function TransactionForm({ accounts, initial, mode = "create", onSuccess 
       {/* Cuenta */}
       <FormField label="Cuenta" error={errors.account_id}>
         <select className={NATIVE_SELECT} value={form.account_id ?? ""}
-          onChange={(e) => { set("account_id", e.target.value); set("type", "purchase"); set("is_msi", false); }}>
+          onChange={(e) => {
+            const acc = accounts.find((a) => a.id === e.target.value);
+            const defaultType = (acc?.type === "credit" || acc?.type === "loan") ? "purchase" : "income";
+            set("account_id", e.target.value);
+            set("type", defaultType);
+            set("is_msi", false);
+          }}>
           <option value="">Selecciona una cuenta…</option>
           {["credit","loan","debit","investment"].map((t) => {
             const group = accounts.filter((a) => a.type === t);
@@ -194,19 +213,47 @@ export function TransactionForm({ accounts, initial, mode = "create", onSuccess 
           {isMsi && (
             <>
               <FormField label="Número de meses">
-                <div className="flex gap-2 flex-wrap">
-                  {MSI_OPTIONS.map((m) => (
-                    <button key={m} type="button"
-                      onClick={() => set("msi_months", m)}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
-                        form.msi_months === m
-                          ? "bg-[var(--color-accent)] text-[var(--color-bg)] border-[var(--color-accent)]"
-                          : "border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-accent)]/50"
-                      }`}>
-                      {m}
+                <div className="flex gap-2 flex-wrap items-center">
+                  {MSI_OPTIONS.map((m) =>
+                    (!customMsi && form.msi_months === m) ? (
+                      <button key={m} type="button"
+                        onClick={() => { setCustomMsi(false); set("msi_months", m); }}
+                        className="px-3 py-1.5 rounded-md text-sm font-medium border transition-colors bg-[var(--color-accent)] text-[var(--color-bg)] border-[var(--color-accent)]">
+                        {m}
+                      </button>
+                    ) : (
+                      <button key={m} type="button"
+                        onClick={() => { setCustomMsi(false); set("msi_months", m); }}
+                        className="px-3 py-1.5 rounded-md text-sm font-medium border transition-colors border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-accent)]/50">
+                        {m}
+                      </button>
+                    )
+                  )}
+                  {customMsi ? (
+                    <button type="button"
+                      onClick={() => { setCustomMsi(true); set("msi_months", undefined); }}
+                      className="px-3 py-1.5 rounded-md text-sm font-medium border transition-colors bg-[var(--color-accent)] text-[var(--color-bg)] border-[var(--color-accent)]">
+                      Otro
                     </button>
-                  ))}
+                  ) : (
+                    <button type="button"
+                      onClick={() => { setCustomMsi(true); set("msi_months", undefined); }}
+                      className="px-3 py-1.5 rounded-md text-sm font-medium border transition-colors border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-accent)]/50">
+                      Otro
+                    </button>
+                  )}
                 </div>
+                {customMsi && (
+                  <Input
+                    type="number"
+                    min={2}
+                    max={60}
+                    placeholder="Ej: 15"
+                    className="mt-2 h-8 w-32"
+                    value={form.msi_months ?? ""}
+                    onChange={(e) => set("msi_months", parseInt(e.target.value, 10) || undefined)}
+                  />
+                )}
               </FormField>
 
               {msiPreview && (
