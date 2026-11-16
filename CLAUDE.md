@@ -52,10 +52,14 @@ Cambiar solo esos archivos para re-tematizar toda la app.
 - **Discrepancia saldo crédito**: `finkhyBalance = Σ cuotas MSI pendientes (desde effectiveMonth) + compras directas no-MSI − transfer_in + opening_balance_carryover`. `balanceDiff = account.current_balance − finkhyBalance`. Positivo → gastos no rastreados en Finkhy. Negativo → diferencia de redondeo MSI. Umbral: >$1 MXN muestra `ShieldAlert` warning; ≤$1 muestra `ShieldCheck` verde.
 - **effectiveMonth**: Si hoy > `cut_date`, el ciclo de facturación activo ya cerró → usar el SIGUIENTE mes como referencia. Si hoy ≤ `cut_date`, usar el mes actual. Se usa en `isCurrent`/`isFuture` de la tabla mensual, MSI activos pendientes, y ciclos de corte. Fórmula: `(account.cut_date && today.getDate() > account.cut_date) ? addMonths(today, 1) : today`.
 - **Período de facturación vs mes calendario**: Distintos `cut_date` → distintos rangos de fecha para el mismo mes. Usar `computeBillingPeriod(cycleMonth, cutDay)` de `lib/utils/billing.ts` para obtener `periodStart`/`periodEnd` correctos por tarjeta. NUNCA asumir que el mes de facturación coincide con `strftime('%Y-%m', date)` al sumar gastos por ciclo.
+  - **REGLA GLOBAL**: Cualquier vista, tabla, widget o proyección que muestre datos de una tarjeta de crédito DEBE usar el período de facturación (`computeBillingPeriod`), no el mes calendario. Esto incluye: tabla mensual en `/accounts/[id]`, desglose del dashboard, `NextCyclePreview`, MSI activos, y cualquier componente futuro con status de crédito. Antes de implementar o modificar cualquier cálculo de tarjeta, verificar que usa `periodStart`/`periodEnd` correcto.
 - **Desglose por tarjeta**: cada celda de la matriz usa `computeBillingPeriod` por cuenta. Siempre sumar: `purchases (period) + msi (billing month) + annual_fee (si cae en period) − credits (transfer_in en period)`. NO usar solo el mes calendario.
 - **Anualidad en ciclos de corte**: Se inyecta automáticamente en `NextCyclePreview` si `annual_fee_date` cae dentro de `periodStart..periodEnd` y NO existe ya una transacción con `category = "Anualidad"` en ese rango. Se muestra como ítem proyectado con badge "Anualidad".
 - **transfer_in en tarjetas de crédito**: son abonos/devoluciones que reducen deuda. Se muestran en `NextCyclePreview` como créditos (verde, `−$amount`). En el desglose se restan del total del período. El label en el formulario es "Pago / Abono / Devolución".
 - **Moneda**: Solo MXN, formato `$#,###.00`
+- **Precisión decimal**: Montos almacenados como `REAL` (IEEE 754 float) en SQLite. Redondeo a 2 decimales se hace con `roundCents(n)` de `lib/utils/msi.ts` — es la única implementación autorizada; NO reinventar `Math.round(n * 100) / 100` inline. Las proyecciones de rendimiento y sumas de flujo no redondean intermedios; `formatMXN` aplica el redondeo de display. El umbral de discrepancia real-vs-Finkhy es >$1 MXN.
+- **Zonas horarias**: Fechas almacenadas como texto `YYYY-MM-DD` sin timezone. Al construir `Date` desde un string así, usar siempre el patrón noon-anchor: `new Date(dateStr + "T12:00:00")` para evitar que JS interprete UTC midnight y corra el día un día atrás en México (UTC-6). Las comparaciones de fecha son léxicas sobre strings (`"2026-11" > "2026-10"`), nunca sobre objetos `Date`. Si el app se migra a un servidor UTC (PostgreSQL), el cálculo de `effectiveMonth` necesitará timezone explícita.
+- **Capa de dominio**: Las funciones puras de cálculo viven en `lib/domain/`. Las funciones de bajo nivel (redondeo, billing period, MSI expansion, alertas, formatters) viven en `lib/utils/`. Los componentes y páginas NO deben realizar cálculos de negocio inline — deben importar desde `lib/domain/`.
 
 ## Schema DB — Cambios recientes
 - `accounts` → columna `opening_balance_carryover REAL` (arrastre opaco al onboardear)
@@ -252,6 +256,23 @@ Toda la UI sigue un sistema normalizado. Cada patrón visual tiene una sola fuen
 - Inactive: `text-[var(--color-accent)]` (orange text)
 - Logo icon: orange
 
+## Regla de pruebas funcionales
+
+Todo cambio en lógica de cálculo **requiere** un test que lo cubra. Los tests deben ser funcionales y verificar comportamiento real, no simplemente que el código compila o que un componente renderiza.
+
+**Criterio de un buen test:**
+- Ejercita la función/repositorio directamente con datos reales representativos
+- Verifica el valor numérico concreto resultante, no solo que "no lanzó error"
+- Cubre el caso que motivó el cambio (el escenario del bug o la nueva regla)
+- Si toca lógica de período de facturación, incluye un caso donde la compra cae ANTES del corte de mes calendario pero DENTRO del ciclo de facturación
+
+**Qué NO es un test válido:**
+- Render tests de componentes React que solo verifican que no crashea
+- Mocks que no tocan la DB real (usar SQLite en memoria con el schema real)
+- Tests que pasan trivialmente porque el assertion es demasiado débil (`.toBeTruthy()` sobre un número)
+
+**Ubicación:** `__tests__/` o junto al archivo que prueban como `*.test.ts`.
+
 ---
 
 ## 📋 Tracking de Tareas
@@ -267,7 +288,7 @@ Toda la UI sigue un sistema normalizado. Cada patrón visual tiene una sola fuen
 - [x] 2.1 Definir interface `IDatabase` (adapter pattern) en `lib/db/adapter.ts`
 - [x] 2.2 Implementar adaptador SQLite en `lib/db/sqlite.ts`
 - [x] 2.3 Crear schema SQL completo en `lib/db/schema.sql` con todas las tablas
-- [ ] 2.4 Crear script de migración/seed inicial
+- [x] 2.4 Crear script de migración/seed inicial
 - [x] 2.5 Crear stub vacío `lib/db/postgres.ts` con TODO para migración futura
 - [x] 2.6 Crear `lib/db/index.ts` que exporta el adaptador correcto según env
 
@@ -340,3 +361,51 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 - [x] 10.2 Tabla de proyección mensual: ingreso esperado vs compromisos MSI vs gastos promedio
 - [x] 10.3 Alerta visual en meses con flujo negativo proyectado
 - [x] 10.4 Soporte para actualizar fuentes de ingreso (cambio de nómina, nuevo bono, etc.)
+
+### Fase 11 — Base de calidad
+
+**Convención:** `[ ]` pendiente · `[x]` completado · `![]` decisión descubierta durante implementación
+
+#### 11.0 — Documentación previa (commit)
+- [x] 11.0.1 Agregar tracking de Fase 11 al CLAUDE.md
+- [x] 11.0.2 Documentar reglas de precisión decimal, timezone, moneda y capa domain en CLAUDE.md
+
+#### 11.1 — Extraer lógica de negocio a `lib/domain/` (commit)
+- [ ] 11.1.1 Centralizar `roundCents()` en `lib/utils/msi.ts` y eliminar las 3 copias ad-hoc
+- [ ] 11.1.2 Consolidar `msiElapsed`/`msiRemainingAmount` de OpeningBalanceWizard → `lib/utils/msi.ts`
+- [ ] 11.1.3 Eliminar doble `expandMsi` en `TransactionsRepository.create()`
+- [ ] 11.1.4 Crear `lib/domain/types.ts` (FlowRow, LoanColumn, DebitAccountSummary, CreditAccountSummary, MonthSlice)
+- [ ] 11.1.5 Crear `lib/domain/flow.ts` (`computeFlowRows` + `projectMonthlyIncome` canónico)
+- [ ] 11.1.6 Crear `lib/domain/yields.ts` (`computeYieldProjection`, `computeDebitSummary`)
+- [ ] 11.1.7 Crear `lib/domain/credit.ts` (`computeCreditUtilization`, `computeDebtSummary`)
+- [ ] 11.1.8 Crear `lib/domain/balance.ts` (`balanceDelta`, `computeBalanceDiscrepancy`)
+- [ ] 11.1.9 Crear `lib/domain/breakdown.ts` (`computeBreakdownMatrix`)
+- [ ] 11.1.10 Crear `lib/domain/kpis.ts` (`computeTransactionKpis`, `computeAccountKpis`)
+- [ ] 11.1.11 Crear `lib/domain/account-detail.ts` (`computeEffectiveMonth`, `buildAccountMonthlyRows`, `buildActiveMsiSummary`, `buildBillingCycles`)
+- [ ] 11.1.12 Crear `lib/domain/index.ts` barrel export
+- [ ] 11.1.13 Migrar: `dashboard/page.tsx`, `flow/page.tsx`, `breakdown/page.tsx`, `debt/page.tsx`
+- [ ] 11.1.14 Migrar: `api/dashboard/flow`, `api/dashboard/summary`, `api/dashboard/breakdown`
+- [ ] 11.1.15 Migrar: `accounts/page.tsx`, `accounts/[id]/page.tsx`, `transactions/page.tsx`
+- [ ] 11.1.16 Migrar componentes: `AccountMetaDebit`, `MonthlyFlowTable`, `TransactionForm`, `IncomeSourceForm`, `OpeningBalanceWizard`
+- [ ] 11.1.17 Migrar `transactions.repo.ts` (importar `balanceDelta` de domain)
+- [ ] 11.1.18 Corregir flujo V1→V3: `dashboard/page.tsx` debe filtrar `income`/`purchase`, no `transfer_*`
+- [ ] 11.1.19 Verificar: `npx tsc --noEmit` + `npm test` pasan
+
+#### 11.2 — Herramientas de calidad (commit)
+- [ ] 11.2.1 Migrar Jest → Vitest (instalar vitest, crear vitest.config.ts, eliminar jest/ts-jest)
+- [ ] 11.2.2 Actualizar imports en tests existentes para Vitest si es necesario
+- [ ] 11.2.3 Extender `.eslintrc.json` con reglas prácticas
+- [ ] 11.2.4 Agregar scripts `typecheck` y `check` (tsc + lint + vitest run) en `package.json`
+- [ ] 11.2.5 Verificar: `npm run check` pasa limpio
+
+#### 11.3 — Tests de funciones de dominio (commit)
+- [ ] 11.3.1 Crear `__tests__/fixtures/dataset.ts` con datos representativos fijos
+- [ ] 11.3.2 Test: `domain/flow` (`computeFlowRows`, `projectMonthlyIncome`)
+- [ ] 11.3.3 Test: `domain/yields` (`computeYieldProjection`, `computeDebitSummary`)
+- [ ] 11.3.4 Test: `domain/credit` (`computeCreditUtilization`, `computeDebtSummary`)
+- [ ] 11.3.5 Test: `domain/balance` (`balanceDelta`, `computeBalanceDiscrepancy`)
+- [ ] 11.3.6 Test: `domain/kpis` (`computeTransactionKpis`, `computeAccountKpis`)
+- [ ] 11.3.7 Verificar: `npm run check` pasa con todos los tests nuevos
+
+#### 11.4 — Documentación de arquitectura (commit)
+- [ ] 11.4.1 Crear `docs/architecture.md` (capas, carpetas, consumidores, convenciones, timezone, decimales)
