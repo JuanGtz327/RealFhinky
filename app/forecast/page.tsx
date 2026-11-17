@@ -4,7 +4,8 @@ import { MsiRepository } from "@/lib/repositories/msi.repo";
 import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { generateForecast, calcAvgMonthlyExpenses } from "@/lib/utils/forecast";
-import { computeIncomeConfirmationStatus } from "@/lib/domain/income";
+import { computeIncomeConfirmationStatus, computeIncomeOverdueAlerts } from "@/lib/domain/income";
+import { IncomeOverdueBanner } from "@/components/forecast/IncomeOverdueBanner";
 import { formatMXN, formatMonthLabel } from "@/lib/utils/formatters";
 import { format, addMonths } from "date-fns";
 import { KPICard } from "@/components/ui/kpi-card";
@@ -24,8 +25,10 @@ export default function ForecastPage() {
   const txRepo   = new TransactionsRepository(db);
   const accRepo  = new AccountsRepository(db);
 
-  const sources       = incRepo.findAllSources();
+  const sources        = incRepo.findAllSources();
   const entriesGrouped = incRepo.findEntriesByMonthGrouped(CURRENT_MONTH);
+  const debitAccounts  = accRepo.findByType("debit").map((a) => ({ id: a.id, name: a.name, bank: a.bank ?? "" }));
+  const overdueAlerts  = computeIncomeOverdueAlerts(sources, entriesGrouped, CURRENT_MONTH, format(new Date(), "yyyy-MM-dd"));
 
   // Compromisos MSI por mes (próximos 12 meses)
   const monthlyMsiCommitments: Record<string, number> = {};
@@ -96,6 +99,8 @@ export default function ForecastPage() {
         <ForecastTable rows={forecast} />
       </section>
 
+      <IncomeOverdueBanner alerts={overdueAlerts} />
+
       {/* Fuentes de ingreso */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
@@ -103,7 +108,7 @@ export default function ForecastPage() {
             Fuentes de ingreso — {formatMonthLabel(CURRENT_MONTH)}
             <span className="ml-2 text-sm font-normal text-[var(--color-muted)]">({sources.length})</span>
           </h2>
-          <NewIncomeSourceModal />
+          <NewIncomeSourceModal debitAccounts={debitAccounts} />
         </div>
 
         {sources.length === 0 ? (

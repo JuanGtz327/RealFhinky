@@ -5,6 +5,8 @@ import {
   computeBlendedIncome,
   computeMonthlyNomina,
   computeIncomeConfirmationStatus,
+  computePastPaymentCount,
+  computeIncomeOverdueAlerts,
 } from "@/lib/domain/income";
 import type { IncomeSource, IncomeEntry } from "@/lib/types";
 
@@ -164,6 +166,70 @@ describe("computeMonthlyNomina", () => {
     ] as [string, IncomeEntry[]][]);
     const result = computeMonthlyNomina([src1], entriesBySource, "remaining-only");
     expect(result.remaining).toBe(0);
+  });
+});
+
+describe("computePastPaymentCount", () => {
+  it("no start_date → 0", () => {
+    const src = makeSource({ frequency: "biweekly" }); // no start_date
+    expect(computePastPaymentCount(src, "2026-11", "2026-11-17")).toBe(0);
+  });
+
+  it("monthly, start Nov 1, today Nov 17 → 1", () => {
+    const src = makeSource({ frequency: "monthly", start_date: "2026-11-01" });
+    expect(computePastPaymentCount(src, "2026-11", "2026-11-17")).toBe(1);
+  });
+
+  it("biweekly, start Nov 1, today Nov 5 → 1 (only Nov 1 passed)", () => {
+    const src = makeSource({ frequency: "biweekly", start_date: "2026-11-01" });
+    expect(computePastPaymentCount(src, "2026-11", "2026-11-05")).toBe(1);
+  });
+
+  it("biweekly, start Nov 1, today Nov 17 → 2 (Nov 1 and Nov 15 passed)", () => {
+    const src = makeSource({ frequency: "biweekly", start_date: "2026-11-01" });
+    expect(computePastPaymentCount(src, "2026-11", "2026-11-17")).toBe(2);
+  });
+
+  it("biweekly, start Oct 15, today Nov 17 → 1 (only Nov 12 passed in Nov)", () => {
+    // Oct15 → Oct29 → Nov12 → Nov26; in November, Nov12 ≤ today, Nov26 > today
+    const src = makeSource({ frequency: "biweekly", start_date: "2026-10-15" });
+    expect(computePastPaymentCount(src, "2026-11", "2026-11-17")).toBe(1);
+  });
+
+  it("today is last day of month → counts all in-month payments up to that day", () => {
+    // biweekly from Nov 1: Nov 1, Nov 15, Nov 29 — all ≤ Nov 30
+    const src = makeSource({ frequency: "biweekly", start_date: "2026-11-01" });
+    expect(computePastPaymentCount(src, "2026-11", "2026-11-30")).toBe(3);
+  });
+});
+
+describe("computeIncomeOverdueAlerts", () => {
+  it("source with 2 past payments, 0 confirmed → overdueCount = 2", () => {
+    const src = makeSource({ start_date: "2026-11-01", frequency: "biweekly" });
+    const alerts = computeIncomeOverdueAlerts([src], new Map(), "2026-11", "2026-11-17");
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].overdueCount).toBe(2);
+    expect(alerts[0].confirmedCount).toBe(0);
+  });
+
+  it("source with 1 past payment, 1 confirmed → no alert", () => {
+    const src = makeSource({ start_date: "2026-11-01", frequency: "biweekly" });
+    const grouped = new Map([["src-1", [makeEntry()]] as [string, IncomeEntry[]]]);
+    const alerts = computeIncomeOverdueAlerts([src], grouped, "2026-11", "2026-11-05");
+    // Nov 1 passed, 1 confirmed → overdueCount = 0
+    expect(alerts).toHaveLength(0);
+  });
+
+  it("source without start_date → no alert", () => {
+    const src = makeSource({ frequency: "biweekly" }); // no start_date
+    const alerts = computeIncomeOverdueAlerts([src], new Map(), "2026-11", "2026-11-17");
+    expect(alerts).toHaveLength(0);
+  });
+
+  it("inactive source → no alert", () => {
+    const src = makeSource({ start_date: "2026-11-01", frequency: "biweekly", is_active: false });
+    const alerts = computeIncomeOverdueAlerts([src], new Map(), "2026-11", "2026-11-17");
+    expect(alerts).toHaveLength(0);
   });
 });
 

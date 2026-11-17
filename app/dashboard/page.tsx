@@ -4,7 +4,7 @@ import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { IncomeRepository } from "@/lib/repositories/income.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
 import { formatMXN } from "@/lib/utils/formatters";
-import { computeFlowRows, computeDebitSummary, computeDebtSummary } from "@/lib/domain";
+import { computeFlowRows, computeDebitSummary, computeDebtSummary, computeIncomeOverdueAlerts } from "@/lib/domain";
 import { format } from "date-fns";
 
 import { DebitTable } from "@/components/dashboard/DebitTable";
@@ -14,7 +14,9 @@ import { FadeIn, StaggerGrid } from "@/components/ui/animated";
 import {
   Wallet, TrendingDown, ArrowUpCircle, ArrowDownCircle,
   BarChart3, CreditCard, Landmark, ChevronRight,
-} from "lucide-react";import Link from "next/link";
+} from "lucide-react";
+import Link from "next/link";
+import { IncomeAlertsWidget } from "@/components/dashboard/IncomeAlertsWidget";
 
 const CURRENT_YEAR  = new Date().getFullYear().toString();
 const CURRENT_MONTH = format(new Date(), "yyyy-MM");
@@ -58,6 +60,11 @@ export default function DashboardPage() {
 
   // ── Widget: deuda ────────────────────────────────────────────
   const allCredit = computeDebtSummary([...creditAccounts, ...loanAccounts]);
+
+  // ── Alertas de nómina ────────────────────────────────────────
+  const incomeSources   = incRepo.findAllSources();
+  const incomeGrouped   = incRepo.findEntriesByMonthGrouped(CURRENT_MONTH);
+  const incomeOverdue   = computeIncomeOverdueAlerts(incomeSources, incomeGrouped, CURRENT_MONTH, format(new Date(), "yyyy-MM-dd"));
 
   // ── KPIs rápidos ─────────────────────────────────────────────
   const currentFlowRow  = flowRows.find((r) => r.month === CURRENT_MONTH);
@@ -145,6 +152,14 @@ export default function DashboardPage() {
           <CreditTable accounts={allCredit} />
         </section>
       </div>
+
+      {/* Alertas de nómina */}
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-navbar)]">
+          <Wallet className="w-4 h-4 text-[var(--color-navbar)]" /> Ingresos
+        </h2>
+        <IncomeAlertsWidget alerts={incomeOverdue} />
+      </section>
 
     </div>
   );

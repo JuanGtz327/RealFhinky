@@ -1,3 +1,4 @@
+import { addDays, parseISO, endOfMonth } from "date-fns";
 import { roundCents } from "@/lib/utils/msi";
 import type { IncomeSource, IncomeEntry } from "@/lib/types";
 import type { BlendedIncomeResult, MonthlyNominaResult, IncomeConfirmationStatus } from "./types";
@@ -53,6 +54,66 @@ export function computeMonthlyNomina(
     confirmedCount: totalConfirmedCount,
     expectedCount:  totalExpectedCount,
   };
+}
+
+function getIntervalDays(source: IncomeSource): number {
+  switch (source.frequency) {
+    case "weekly":   return 7;
+    case "biweekly": return 14;
+    case "monthly":  return 30;
+    case "custom":   return source.custom_interval_days ?? 30;
+    default:         return 0;
+  }
+}
+
+export function computePastPaymentCount(
+  source: IncomeSource,
+  monthStr: string,
+  today: string
+): number {
+  if (!source.start_date) return 0;
+  const intervalDays = getIntervalDays(source);
+  if (intervalDays <= 0) return 0;
+
+  let cursor      = parseISO(source.start_date + "T12:00:00");
+  const monthStart = parseISO(monthStr + "-01T12:00:00");
+  const monthEnd   = endOfMonth(monthStart);
+  const todayDate  = parseISO(today + "T12:00:00");
+  const cutoff     = todayDate < monthEnd ? todayDate : monthEnd;
+
+  while (cursor < monthStart) cursor = addDays(cursor, intervalDays);
+
+  let count = 0;
+  while (cursor <= cutoff) { count++; cursor = addDays(cursor, intervalDays); }
+  return count;
+}
+
+export interface IncomeOverdueAlert {
+  sourceId: string;
+  sourceName: string;
+  overdueCount: number;
+  confirmedCount: number;
+  pastPaymentCount: number;
+}
+
+export function computeIncomeOverdueAlerts(
+  sources: IncomeSource[],
+  entriesGrouped: Map<string, IncomeEntry[]>,
+  monthStr: string,
+  today: string
+): IncomeOverdueAlert[] {
+  const alerts: IncomeOverdueAlert[] = [];
+  for (const source of sources) {
+    if (!source.is_active || !source.start_date) continue;
+    const entries        = entriesGrouped.get(source.id) ?? [];
+    const pastCount      = computePastPaymentCount(source, monthStr, today);
+    const confirmedCount = entries.length;
+    const overdueCount   = Math.max(0, pastCount - confirmedCount);
+    if (overdueCount > 0) {
+      alerts.push({ sourceId: source.id, sourceName: source.name, overdueCount, confirmedCount, pastPaymentCount: pastCount });
+    }
+  }
+  return alerts;
 }
 
 export function computeIncomeConfirmationStatus(
