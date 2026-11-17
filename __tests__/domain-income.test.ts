@@ -7,6 +7,7 @@ import {
   computeIncomeConfirmationStatus,
   computePastPaymentCount,
   computeIncomeOverdueAlerts,
+  computeExpectedPaymentDates,
 } from "@/lib/domain/income";
 import type { IncomeSource, IncomeEntry } from "@/lib/types";
 
@@ -258,5 +259,69 @@ describe("computeIncomeConfirmationStatus", () => {
     expect(result.status).toBe("confirmed");
     expect(result.remainingAmount).toBe(0);
     expect(result.confirmedTotal).toBe(20000);
+  });
+});
+
+describe("computeExpectedPaymentDates", () => {
+  it("no start_date → empty array", () => {
+    const src = makeSource({ frequency: "biweekly" });
+    expect(computeExpectedPaymentDates(src, "2026-11", "2026-11-17", [])).toHaveLength(0);
+  });
+
+  it("monthly, start Nov 1 → 1 slot on Nov 1", () => {
+    const src = makeSource({ frequency: "monthly", start_date: "2026-11-01" });
+    const slots = computeExpectedPaymentDates(src, "2026-11", "2026-11-17", []);
+    expect(slots).toHaveLength(1);
+    expect(slots[0].date).toBe("2026-11-01");
+    expect(slots[0].isPast).toBe(true);
+    expect(slots[0].entry).toBeNull();
+  });
+
+  it("biweekly, start Nov 1, month Nov → 3 slots (Nov 1, Nov 15, Nov 29)", () => {
+    const src = makeSource({ frequency: "biweekly", start_date: "2026-11-01" });
+    const slots = computeExpectedPaymentDates(src, "2026-11", "2026-11-17", []);
+    expect(slots).toHaveLength(3);
+    expect(slots[0].date).toBe("2026-11-01");
+    expect(slots[1].date).toBe("2026-11-15");
+    expect(slots[2].date).toBe("2026-11-29");
+    expect(slots[0].isPast).toBe(true);
+    expect(slots[1].isPast).toBe(true);
+    expect(slots[2].isPast).toBe(false); // Nov 29 > Nov 17
+  });
+
+  it("future slot not marked as past", () => {
+    const src = makeSource({ frequency: "biweekly", start_date: "2026-11-01" });
+    const slots = computeExpectedPaymentDates(src, "2026-11", "2026-11-05", []);
+    expect(slots[0].isPast).toBe(true);  // Nov 1 ≤ Nov 5
+    expect(slots[1].isPast).toBe(false); // Nov 15 > Nov 5
+    expect(slots[2].isPast).toBe(false); // Nov 29 > Nov 5
+  });
+
+  it("entries matched in order to slots", () => {
+    const src = makeSource({ frequency: "biweekly", start_date: "2026-11-01" });
+    const e1 = makeEntry({ id: "e-1", date: "2026-11-01", amount: 10000 });
+    const e2 = makeEntry({ id: "e-2", date: "2026-11-15", amount: 9500 });
+    const slots = computeExpectedPaymentDates(src, "2026-11", "2026-11-17", [e1, e2]);
+    expect(slots[0].entry?.id).toBe("e-1");
+    expect(slots[1].entry?.id).toBe("e-2");
+    expect(slots[2].entry).toBeNull(); // Nov 29 slot has no entry
+  });
+
+  it("1 entry for 3 slots → only first slot has entry", () => {
+    const src = makeSource({ frequency: "biweekly", start_date: "2026-11-01" });
+    const e1 = makeEntry({ id: "e-1", date: "2026-11-01", amount: 10000 });
+    const slots = computeExpectedPaymentDates(src, "2026-11", "2026-11-17", [e1]);
+    expect(slots[0].entry?.id).toBe("e-1");
+    expect(slots[1].entry).toBeNull();
+    expect(slots[2].entry).toBeNull();
+  });
+
+  it("start_date before month → first slot is within month", () => {
+    // Oct 15 biweekly → Oct 15, Oct 29, Nov 12, Nov 26
+    const src = makeSource({ frequency: "biweekly", start_date: "2026-10-15" });
+    const slots = computeExpectedPaymentDates(src, "2026-11", "2026-11-30", []);
+    expect(slots).toHaveLength(2);
+    expect(slots[0].date).toBe("2026-11-12");
+    expect(slots[1].date).toBe("2026-11-26");
   });
 });

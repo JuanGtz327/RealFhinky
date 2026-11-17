@@ -1,4 +1,4 @@
-import { addDays, parseISO, endOfMonth } from "date-fns";
+import { addDays, format, parseISO, endOfMonth } from "date-fns";
 import { roundCents } from "@/lib/utils/msi";
 import type { IncomeSource, IncomeEntry } from "@/lib/types";
 import type { BlendedIncomeResult, MonthlyNominaResult, IncomeConfirmationStatus } from "./types";
@@ -114,6 +114,43 @@ export function computeIncomeOverdueAlerts(
     }
   }
   return alerts;
+}
+
+export interface ExpectedPaymentSlot {
+  date: string;
+  isPast: boolean;
+  entry: IncomeEntry | null;
+}
+
+export function computeExpectedPaymentDates(
+  source: IncomeSource,
+  monthStr: string,
+  today: string,
+  entries: IncomeEntry[]
+): ExpectedPaymentSlot[] {
+  if (!source.start_date) return [];
+  const intervalDays = getIntervalDays(source);
+  if (intervalDays <= 0) return [];
+
+  let cursor = parseISO(source.start_date + "T12:00:00");
+  const monthStart = parseISO(monthStr + "-01T12:00:00");
+  const monthEnd = endOfMonth(monthStart);
+
+  while (cursor < monthStart) cursor = addDays(cursor, intervalDays);
+
+  const expectedDates: string[] = [];
+  while (cursor <= monthEnd) {
+    expectedDates.push(format(cursor, "yyyy-MM-dd"));
+    cursor = addDays(cursor, intervalDays);
+  }
+
+  const sortedEntries = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+
+  return expectedDates.map((date, i) => ({
+    date,
+    isPast: date <= today,
+    entry: sortedEntries[i] ?? null,
+  }));
 }
 
 export function computeIncomeConfirmationStatus(

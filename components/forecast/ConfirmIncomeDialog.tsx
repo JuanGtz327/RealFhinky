@@ -20,14 +20,15 @@ interface Props {
   onOpenChange: (v: boolean) => void;
   source: IncomeSource;
   onConfirmed: () => void;
+  initialDate?: string;
 }
 
-export function ConfirmIncomeDialog({ open, onOpenChange, source, onConfirmed }: Props) {
+export function ConfirmIncomeDialog({ open, onOpenChange, source, onConfirmed, initialDate }: Props) {
   const router = useRouter();
   const today  = new Date().toISOString().slice(0, 10);
 
   const [amount, setAmount] = useState(String(source.base_amount));
-  const [date,   setDate]   = useState(today);
+  const [date,   setDate]   = useState(initialDate ?? today);
   const [notes,  setNotes]  = useState("");
   const [error,  setError]  = useState<string | null>(null);
 

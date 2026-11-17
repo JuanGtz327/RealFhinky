@@ -12,6 +12,7 @@ import EmptyState from "@/components/kokonutui/empty-state";
 import { DollarSign } from "lucide-react";
 
 const CURRENT_MONTH = format(new Date(), "yyyy-MM");
+const TODAY         = format(new Date(), "yyyy-MM-dd");
 
 export default function IncomePage() {
   const db       = getDb();
@@ -62,6 +63,8 @@ export default function IncomePage() {
                   source={src}
                   entries={entries}
                   status={status}
+                  monthStr={CURRENT_MONTH}
+                  today={TODAY}
                 />
               );
             })}
