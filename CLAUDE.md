@@ -408,4 +408,4 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 - [x] 11.3.7 Verificar: `npm run check` pasa con todos los tests nuevos
 
 #### 11.4 — Documentación de arquitectura (commit)
-- [ ] 11.4.1 Crear `docs/architecture.md` (capas, carpetas, consumidores, convenciones, timezone, decimales)
+- [x] 11.4.1 Crear `docs/architecture.md` (capas, carpetas, consumidores, convenciones, timezone, decimales)
