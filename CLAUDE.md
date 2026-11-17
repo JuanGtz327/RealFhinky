@@ -399,13 +399,13 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 - [x] 11.2.5 Verificar: `npm run check` pasa limpio
 
 #### 11.3 — Tests de funciones de dominio (commit)
-- [ ] 11.3.1 Crear `__tests__/fixtures/dataset.ts` con datos representativos fijos
-- [ ] 11.3.2 Test: `domain/flow` (`computeFlowRows`, `projectMonthlyIncome`)
-- [ ] 11.3.3 Test: `domain/yields` (`computeYieldProjection`, `computeDebitSummary`)
-- [ ] 11.3.4 Test: `domain/credit` (`computeCreditUtilization`, `computeDebtSummary`)
-- [ ] 11.3.5 Test: `domain/balance` (`balanceDelta`, `computeBalanceDiscrepancy`)
-- [ ] 11.3.6 Test: `domain/kpis` (`computeTransactionKpis`, `computeAccountKpis`)
-- [ ] 11.3.7 Verificar: `npm run check` pasa con todos los tests nuevos
+- [x] 11.3.1 Crear `__tests__/fixtures/dataset.ts` con datos representativos fijos
+- [x] 11.3.2 Test: `domain/flow` (`computeFlowRows` — 5 escenarios reales con SQLite en memoria)
+- [x] 11.3.3 Test: `domain/yields` (`computeDebitSummary` — 6 casos)
+- [x] 11.3.4 Test: `domain/credit` (`computeCreditUtilization`, `computeDebtSummary` — 8 casos)
+- [x] 11.3.5 Test: `domain/balance` (`balanceDelta`, `computeBalanceDiscrepancy` — 11 casos)
+- [x] 11.3.6 Test: `domain/kpis` (`computeAccountKpis` — 6 casos)
+- [x] 11.3.7 Verificar: `npm run check` pasa con todos los tests nuevos
 
 #### 11.4 — Documentación de arquitectura (commit)
 - [ ] 11.4.1 Crear `docs/architecture.md` (capas, carpetas, consumidores, convenciones, timezone, decimales)
