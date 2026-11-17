@@ -7,8 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest",
-    "test:watch": "jest --watch",
+    "test": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vitest run",
+    "test:watch": "VITE_CONFIG_NATIVE_IGNORE_WARNING=true vitest",
+    "typecheck": "tsc --noEmit",
+    "check": "tsc --noEmit && next lint && VITE_CONFIG_NATIVE_IGNORE_WARNING=true vitest run",
     "seed": "ts-node --project tsconfig.json --skipProject scripts/seed.ts"
   },
   "dependencies": {
@@ -32,19 +34,19 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
-    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@vitest/coverage-v8": "^5.1.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
-    "jest": "^30.5.2",
     "postcss": "^8",
     "shadcn": "^4.23.0",
     "tailwindcss": "^3.4.1",
-    "ts-jest": "^29.4.15",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
   },
   "allowScripts": {
     "fsevents@2.3.3": true,

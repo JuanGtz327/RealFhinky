@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { FormField } from "@/components/ui/form-field";
 import { useToast } from "@/components/kokonutui/promise-toast";
 import { formatMXN } from "@/lib/utils/formatters";

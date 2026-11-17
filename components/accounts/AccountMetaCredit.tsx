@@ -115,7 +115,7 @@ export function AccountMetaCredit({
           balanceDiff !== undefined ? (
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   {hasDiff
                     ? <ShieldAlert className="w-4 h-4 text-[var(--color-warning)] cursor-default" />
                     : <ShieldCheck className="w-4 h-4 text-[var(--color-success)] cursor-default" />

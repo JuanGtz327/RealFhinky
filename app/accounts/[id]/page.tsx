@@ -21,7 +21,6 @@ import { OpeningBalanceWizard } from "@/components/accounts/OpeningBalanceWizard
 import Link from "next/link";
 import { Pencil, ChevronLeft, ChevronRight, CreditCard, CalendarRange, BarChart2, ArrowUpDown } from "lucide-react";
 
-const REAL_MONTH  = format(new Date(), "yyyy-MM");
 const REAL_YEAR   = new Date().getFullYear();
 const MONTHS = ["01","02","03","04","05","06","07","08","09","10","11","12"];
 
@@ -167,8 +166,7 @@ export default function AccountDetailPage({
   const discrepancy = isCredit
     ? computeBalanceDiscrepancy(account, totalPendingMsi, allTx)
     : null;
-  const finkhyBalance = discrepancy?.finkhyBalance ?? null;
-  const balanceDiff   = discrepancy?.diff ?? null;
+  const balanceDiff = discrepancy?.diff ?? null;
 
   // ── KPIs según tipo ──────────────────────────────────────
   const utilization  = account.credit_limit && account.credit_limit > 0
