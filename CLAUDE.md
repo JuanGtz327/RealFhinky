@@ -371,25 +371,25 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 - [x] 11.0.2 Documentar reglas de precisión decimal, timezone, moneda y capa domain en CLAUDE.md
 
 #### 11.1 — Extraer lógica de negocio a `lib/domain/` (commit)
-- [ ] 11.1.1 Centralizar `roundCents()` en `lib/utils/msi.ts` y eliminar las 3 copias ad-hoc
-- [ ] 11.1.2 Consolidar `msiElapsed`/`msiRemainingAmount` de OpeningBalanceWizard → `lib/utils/msi.ts`
-- [ ] 11.1.3 Eliminar doble `expandMsi` en `TransactionsRepository.create()`
-- [ ] 11.1.4 Crear `lib/domain/types.ts` (FlowRow, LoanColumn, DebitAccountSummary, CreditAccountSummary, MonthSlice)
-- [ ] 11.1.5 Crear `lib/domain/flow.ts` (`computeFlowRows` + `projectMonthlyIncome` canónico)
-- [ ] 11.1.6 Crear `lib/domain/yields.ts` (`computeYieldProjection`, `computeDebitSummary`)
-- [ ] 11.1.7 Crear `lib/domain/credit.ts` (`computeCreditUtilization`, `computeDebtSummary`)
-- [ ] 11.1.8 Crear `lib/domain/balance.ts` (`balanceDelta`, `computeBalanceDiscrepancy`)
-- [ ] 11.1.9 Crear `lib/domain/breakdown.ts` (`computeBreakdownMatrix`)
-- [ ] 11.1.10 Crear `lib/domain/kpis.ts` (`computeTransactionKpis`, `computeAccountKpis`)
-- [ ] 11.1.11 Crear `lib/domain/account-detail.ts` (`computeEffectiveMonth`, `buildAccountMonthlyRows`, `buildActiveMsiSummary`, `buildBillingCycles`)
-- [ ] 11.1.12 Crear `lib/domain/index.ts` barrel export
-- [ ] 11.1.13 Migrar: `dashboard/page.tsx`, `flow/page.tsx`, `breakdown/page.tsx`, `debt/page.tsx`
-- [ ] 11.1.14 Migrar: `api/dashboard/flow`, `api/dashboard/summary`, `api/dashboard/breakdown`
-- [ ] 11.1.15 Migrar: `accounts/page.tsx`, `accounts/[id]/page.tsx`, `transactions/page.tsx`
-- [ ] 11.1.16 Migrar componentes: `AccountMetaDebit`, `MonthlyFlowTable`, `TransactionForm`, `IncomeSourceForm`, `OpeningBalanceWizard`
-- [ ] 11.1.17 Migrar `transactions.repo.ts` (importar `balanceDelta` de domain)
-- [ ] 11.1.18 Corregir flujo V1→V3: `dashboard/page.tsx` debe filtrar `income`/`purchase`, no `transfer_*`
-- [ ] 11.1.19 Verificar: `npx tsc --noEmit` + `npm test` pasan
+- [x] 11.1.1 Centralizar `roundCents()` en `lib/utils/msi.ts` y eliminar las 3 copias ad-hoc
+- [x] 11.1.2 Consolidar `msiElapsed`/`msiRemainingAmount` de OpeningBalanceWizard → `lib/utils/msi.ts`
+- [x] 11.1.3 Eliminar doble `expandMsi` en `TransactionsRepository.create()`
+- [x] 11.1.4 Crear `lib/domain/types.ts` (FlowRow, LoanColumn, DebitAccountSummary, CreditAccountSummary, MonthSlice)
+- [x] 11.1.5 Crear `lib/domain/flow.ts` (`computeFlowRows` + `projectMonthlyIncome` canónico)
+- [x] 11.1.6 Crear `lib/domain/yields.ts` (`computeYieldProjection`, `computeDebitSummary`)
+- [x] 11.1.7 Crear `lib/domain/credit.ts` (`computeCreditUtilization`, `computeDebtSummary`)
+- [x] 11.1.8 Crear `lib/domain/balance.ts` (`balanceDelta`, `computeBalanceDiscrepancy`)
+- [x] 11.1.9 Crear `lib/domain/breakdown.ts` (`computeBreakdownMatrix`)
+- [x] 11.1.10 Crear `lib/domain/kpis.ts` (`computeTransactionKpis`, `computeAccountKpis`)
+- [x] 11.1.11 Crear `lib/domain/account-detail.ts` (`computeEffectiveMonth`, `buildAccountMonthlyRows`, `buildActiveMsiSummary`, `buildBillingCycles`)
+- [x] 11.1.12 Crear `lib/domain/index.ts` barrel export
+- [x] 11.1.13 Migrar: `dashboard/page.tsx`, `flow/page.tsx`, `breakdown/page.tsx`, `debt/page.tsx`
+- [x] 11.1.14 Migrar: `api/dashboard/flow`, `api/dashboard/summary`, `api/dashboard/breakdown`
+- [x] 11.1.15 Migrar: `accounts/page.tsx`, `accounts/[id]/page.tsx`, `transactions/page.tsx`
+- [x] 11.1.16 Migrar componentes: `AccountMetaDebit`, `MonthlyFlowTable`, `TransactionForm`, `IncomeSourceForm`, `OpeningBalanceWizard`
+- [x] 11.1.17 Migrar `transactions.repo.ts` (importar `balanceDelta` de domain)
+- [x] 11.1.18 Corregir flujo V1→V3: `dashboard/page.tsx` debe filtrar `income`/`purchase`, no `transfer_*`
+- [x] 11.1.19 Verificar: `npx tsc --noEmit` + `npm test` pasan
 
 #### 11.2 — Herramientas de calidad (commit)
 - [ ] 11.2.1 Migrar Jest → Vitest (instalar vitest, crear vitest.config.ts, eliminar jest/ts-jest)
