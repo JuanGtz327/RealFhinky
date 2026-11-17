@@ -226,10 +226,23 @@ export default function AccountDetailPage({
 
       {/* Banner: pagos pendientes de confirmar */}
       {isCredit && unpaidPastCount > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/8 px-4 py-3">
-          <AlertTriangle className="w-4 h-4 text-[var(--color-warning)] shrink-0" />
-          <p className="text-sm text-[var(--color-foreground)]">
-            Tienes <span className="font-semibold">{unpaidPastCount} {unpaidPastCount === 1 ? "ciclo sin confirmar" : "ciclos sin confirmar"}</span> en el año. Navega a los meses pasados en Próximo corte para registrar los pagos.
+        <div
+          className="flex items-center gap-3 rounded-lg px-4 py-3 animate-in slide-in-from-top-3 duration-500"
+          style={{ background: "var(--color-navbar)", borderLeft: "4px solid var(--color-accent)" }}
+        >
+          {/* Badge de acción */}
+          <div className="flex items-center gap-1.5 shrink-0 rounded-full px-2 py-0.5" style={{ background: "rgba(232,100,60,0.20)" }}>
+            <AlertTriangle className="w-3.5 h-3.5 animate-pulse" style={{ color: "var(--color-accent)" }} />
+            <span className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--color-accent)" }}>
+              Acción
+            </span>
+          </div>
+          <p className="text-sm text-white/80">
+            Tienes{" "}
+            <span className="font-bold text-white">
+              {unpaidPastCount} {unpaidPastCount === 1 ? "ciclo sin confirmar" : "ciclos sin confirmar"}
+            </span>{" "}
+            en el año. Navega a los meses pasados en Próximo corte para registrar los pagos.
           </p>
         </div>
       )}

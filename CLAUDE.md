@@ -428,25 +428,25 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 - [x] 12.0.2 Documentar reglas de dominio: semántica de `cycle_payments`, status derivado, constraint UNIQUE
 
 #### 12.1 — Data model + domain + repo + API (commit)
-- [ ] 12.1.1 Agregar tabla `cycle_payments` a `schema.sql`
-- [ ] 12.1.2 Agregar `CyclePayment` type a `lib/types.ts`
-- [ ] 12.1.3 Crear `lib/domain/payments.ts` (`computePaymentStatus`, `computeCycleAmountDue`)
-- [ ] 12.1.4 Crear `lib/repositories/cycle-payments.repo.ts`
-- [ ] 12.1.5 Crear API routes: `cycle-payments/route.ts` + `cycle-payments/[id]/route.ts`
-- [ ] 12.1.6 Export desde `lib/domain/index.ts`
-- [ ] 12.1.7 Tests: `__tests__/domain-payments.test.ts`
-- [ ] 12.1.8 Verificar: `npm run check`
+- [x] 12.1.1 Agregar tabla `cycle_payments` a `schema.sql`
+- [x] 12.1.2 Agregar `CyclePayment` type a `lib/types.ts`
+- [x] 12.1.3 Crear `lib/domain/payments.ts` (`computePaymentStatus`, `computeCycleAmountDue`)
+- [x] 12.1.4 Crear `lib/repositories/cycle-payments.repo.ts`
+- [x] 12.1.5 Crear API routes: `cycle-payments/route.ts` + `cycle-payments/[id]/route.ts`
+- [x] 12.1.6 Export desde `lib/domain/index.ts`
+- [x] 12.1.7 Tests: `__tests__/domain-payments.test.ts`
+- [x] 12.1.8 Verificar: `npm run check`
 
 #### 12.2 — UI: ConfirmPaymentDialog + NextCyclePreview (commit)
-- [ ] 12.2.1 Crear `ConfirmPaymentDialog.tsx` (FormDialog + SlideToConfirm)
-- [ ] 12.2.2 Modificar `NextCyclePreview.tsx`: footer con status de pago + botón confirmar
-- [ ] 12.2.3 Modificar `app/accounts/[id]/page.tsx`: consultar cycle_payments, pasar a BillingCycle
-- [ ] 12.2.4 Verificar en browser: confirmar pago, pago parcial, deshacer
+- [x] 12.2.1 Crear `ConfirmPaymentDialog.tsx` (FormDialog + SlideToConfirm)
+- [x] 12.2.2 Modificar `NextCyclePreview.tsx`: footer con status de pago + botón confirmar
+- [x] 12.2.3 Modificar `app/accounts/[id]/page.tsx`: consultar cycle_payments, pasar a BillingCycle
+- [x] 12.2.4 Verificar en browser: confirmar pago, pago parcial, deshacer
 
 #### 12.3 — UI: Dashboard indicators (commit)
-- [ ] 12.3.1 Modificar `AccountMetaCredit.tsx`: "Pago" refleja confirmación
-- [ ] 12.3.2 Modificar `CardAlertsTable.tsx`: DateRow refleja confirmación
-- [ ] 12.3.3 Modificar `app/api/dashboard/summary/route.ts`: incluir payment status
-- [ ] 12.3.4 Modificar `AccountMonthlyTable.tsx`: columna de payment status
-- [ ] 12.3.5 Verificar en browser: dashboard refleja pagos confirmados
-- [ ] 12.3.6 Verificar: `npm run check`
+- [x] 12.3.1 Modificar `AccountMetaCredit.tsx`: "Pago" refleja confirmación
+- [x] 12.3.2 Modificar `CardAlertsTable.tsx`: DateRow refleja confirmación
+- [x] 12.3.3 Modificar `app/api/dashboard/summary/route.ts`: incluir payment status
+- [x] 12.3.4 Modificar `AccountMonthlyTable.tsx`: columna de payment status
+- [x] 12.3.5 Verificar en browser: dashboard refleja pagos confirmados
+- [x] 12.3.6 Verificar: `npm run check`

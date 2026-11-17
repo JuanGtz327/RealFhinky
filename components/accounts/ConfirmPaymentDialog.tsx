@@ -1,12 +1,18 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FormDialog } from "@/components/ui/form-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import SlideToConfirm from "@/components/kokonutui/slide-to-confirm";
 import { formatMXN, formatMonthLabel } from "@/lib/utils/formatters";
+import { roundCents } from "@/lib/utils/msi";
+import { CreditCard, CalendarDays, StickyNote, X } from "lucide-react";
 import type { CyclePayment } from "@/lib/types";
 
 interface ConfirmPaymentDialogProps {
@@ -28,18 +34,20 @@ export function ConfirmPaymentDialog({
 }: ConfirmPaymentDialogProps) {
   const router = useRouter();
   const today = new Date().toISOString().slice(0, 10);
+  const roundedDue = roundCents(amountDue);
 
   const [amountPaid, setAmountPaid] = useState(
-    existingPayment ? String(existingPayment.amount_paid) : String(amountDue)
+    existingPayment
+      ? String(roundCents(existingPayment.amount_paid))
+      : String(roundedDue)
   );
-  const [paidDate, setPaidDate] = useState(
-    existingPayment?.paid_date ?? today
-  );
+  const [paidDate, setPaidDate] = useState(existingPayment?.paid_date ?? today);
   const [notes, setNotes] = useState(existingPayment?.notes ?? "");
   const [error, setError] = useState<string | null>(null);
-  const slideRef = useRef<HTMLDivElement>(null);
 
   const monthLabel = formatMonthLabel(cycleMonth);
+  const parsedAmount = roundCents(parseFloat(amountPaid) || 0);
+  const isPartial = parsedAmount > 0 && parsedAmount < roundedDue;
 
   const handleConfirm = async () => {
     setError(null);
@@ -64,7 +72,7 @@ export function ConfirmPaymentDialog({
         body: JSON.stringify({
           account_id: accountId,
           cycle_month: cycleMonth,
-          amount_due: amountDue,
+          amount_due: roundedDue,
           amount_paid: paid,
           paid_date: paidDate,
           notes: notes || undefined,
@@ -82,60 +90,107 @@ export function ConfirmPaymentDialog({
   };
 
   return (
-    <FormDialog
+    <Dialog
       open={open}
-      onClose={onClose}
-      title={existingPayment ? "Actualizar pago" : "Confirmar pago"}
-      description={`Ciclo ${monthLabel}`}
+      onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}
     >
-      <div className="space-y-5 pt-2 pb-4">
-        {/* Resumen del ciclo */}
-        <div className="rounded-lg bg-[var(--color-bg)] border border-[var(--color-border)] px-4 py-3 flex items-center justify-between">
-          <span className="text-sm text-[var(--color-muted)]">Total del ciclo</span>
-          <span className="font-mono font-semibold text-[var(--color-foreground)]">{formatMXN(amountDue)}</span>
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden gap-0 ring-0 border-0" showCloseButton={false}>
+        {/* Header charcoal */}
+        <div className="bg-[var(--color-navbar)] px-5 py-4 flex items-start justify-between border-b-[3px] border-[var(--color-accent)]">
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <CreditCard className="w-4 h-4 text-[var(--color-accent)]" />
+              <DialogTitle className="text-base font-semibold text-white">
+                {existingPayment ? "Actualizar pago" : "Confirmar pago"}
+              </DialogTitle>
+            </div>
+            <p className="text-xs text-white/50 pl-6">Ciclo {monthLabel}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-white/40 hover:text-white/80 transition-colors mt-0.5"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <FormField label="Monto pagado" error={error ?? undefined}>
-          <Input
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={amountPaid}
-            onChange={(e) => setAmountPaid(e.target.value)}
-            className="h-8"
-          />
-        </FormField>
+        <div className="max-h-[75vh] overflow-y-auto">
+          {/* Total del ciclo */}
+          <div className="flex items-center justify-between px-5 py-4">
+            <span className="text-xs font-semibold text-[var(--color-foreground)] uppercase tracking-wider">Total del ciclo</span>
+            <span className="font-mono font-bold text-lg text-[var(--color-foreground)]">{formatMXN(roundedDue)}</span>
+          </div>
 
-        <FormField label="Fecha de pago">
-          <Input
-            type="date"
-            value={paidDate}
-            onChange={(e) => setPaidDate(e.target.value)}
-            className="h-8"
-          />
-        </FormField>
+          {/* Divisor naranja — encima de Monto pagado */}
+          <div className="h-[2px] mx-5 rounded-full bg-[var(--color-accent)]" />
 
-        <FormField label="Notas (opcional)">
-          <Input
-            type="text"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Pago total, mínimo, etc."
-            className="h-8"
-          />
-        </FormField>
+          {/* Monto pagado + Fecha */}
+          <div className="px-5 pt-4 pb-4 space-y-4">
+            <FormField label="Monto pagado" error={error ?? undefined}>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--color-muted)] pointer-events-none">$</span>
+                <Input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={amountPaid}
+                  onChange={(e) => setAmountPaid(e.target.value)}
+                  className="h-8 pl-6"
+                />
+                {isPartial && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--color-warning)] font-medium pointer-events-none">
+                    Parcial
+                  </span>
+                )}
+              </div>
+            </FormField>
 
-        <div ref={slideRef} className="pt-2">
-          <SlideToConfirm
-            label={existingPayment ? `Desliza para actualizar • ${formatMXN(parseFloat(amountPaid) || 0)}` : `Desliza para confirmar pago • ${formatMXN(parseFloat(amountPaid) || 0)}`}
-            confirmingLabel="Registrando"
-            doneLabel="Pago registrado"
-            resetAfter={null}
-            onConfirm={handleConfirm}
-            className="w-full max-w-full"
-          />
+            <FormField label="Fecha de pago">
+              <div className="relative">
+                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-muted)] pointer-events-none" />
+                <Input
+                  type="date"
+                  value={paidDate}
+                  onChange={(e) => setPaidDate(e.target.value)}
+                  className="h-8 pl-8"
+                />
+              </div>
+            </FormField>
+          </div>
+
+          {/* Divisor naranja — encima de Notas */}
+          <div className="h-[2px] mx-5 rounded-full bg-[var(--color-accent)]" />
+
+          {/* Notas + SlideToConfirm */}
+          <div className="px-5 pt-4 pb-5 space-y-4">
+            <FormField label="Notas (opcional)">
+              <div className="relative">
+                <StickyNote className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--color-muted)] pointer-events-none" />
+                <Input
+                  type="text"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Pago total, mínimo, etc."
+                  className="h-8 pl-8"
+                />
+              </div>
+            </FormField>
+
+            <SlideToConfirm
+              label={
+                existingPayment
+                  ? `Desliza para actualizar • ${formatMXN(parsedAmount)}`
+                  : `Desliza para confirmar pago • ${formatMXN(parsedAmount)}`
+              }
+              confirmingLabel="Registrando"
+              doneLabel="Pago registrado"
+              resetAfter={null}
+              onConfirm={handleConfirm}
+              className="w-full max-w-full"
+            />
+          </div>
         </div>
-      </div>
-    </FormDialog>
+      </DialogContent>
+    </Dialog>
   );
 }
