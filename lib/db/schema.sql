@@ -75,3 +75,16 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS cycle_payments (
+  id           TEXT PRIMARY KEY,
+  account_id   TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  cycle_month  TEXT NOT NULL,
+  amount_due   REAL NOT NULL,
+  amount_paid  REAL NOT NULL,
+  paid_date    TEXT NOT NULL,
+  notes        TEXT,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(account_id, cycle_month)
+);
+CREATE INDEX IF NOT EXISTS idx_cycle_payments_account ON cycle_payments(account_id);

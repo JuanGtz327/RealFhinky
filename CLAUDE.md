@@ -60,12 +60,21 @@ Cambiar solo esos archivos para re-tematizar toda la app.
 - **Precisión decimal**: Montos almacenados como `REAL` (IEEE 754 float) en SQLite. Redondeo a 2 decimales se hace con `roundCents(n)` de `lib/utils/msi.ts` — es la única implementación autorizada; NO reinventar `Math.round(n * 100) / 100` inline. Las proyecciones de rendimiento y sumas de flujo no redondean intermedios; `formatMXN` aplica el redondeo de display. El umbral de discrepancia real-vs-Finkhy es >$1 MXN.
 - **Zonas horarias**: Fechas almacenadas como texto `YYYY-MM-DD` sin timezone. Al construir `Date` desde un string así, usar siempre el patrón noon-anchor: `new Date(dateStr + "T12:00:00")` para evitar que JS interprete UTC midnight y corra el día un día atrás en México (UTC-6). Las comparaciones de fecha son léxicas sobre strings (`"2026-11" > "2026-10"`), nunca sobre objetos `Date`. Si el app se migra a un servidor UTC (PostgreSQL), el cálculo de `effectiveMonth` necesitará timezone explícita.
 - **Capa de dominio**: Las funciones puras de cálculo viven en `lib/domain/`. Las funciones de bajo nivel (redondeo, billing period, MSI expansion, alertas, formatters) viven en `lib/utils/`. Los componentes y páginas NO deben realizar cálculos de negocio inline — deben importar desde `lib/domain/`.
+- **Confirmación de pagos (`cycle_payments`)**: Tabla separada que almacena la confirmación manual del usuario de que pagó un ciclo de facturación. Semántica:
+  - Un registro por `(account_id, cycle_month)` — constraint UNIQUE. Para actualizar (pago parcial → total), usar PUT, no crear otro registro.
+  - Aplica solo a cuentas `type=credit` y `type=loan`. Las cuentas débito no tienen ciclos de facturación.
+  - `amount_due`: snapshot del total del ciclo al momento de confirmar. No se recalcula; es histórico.
+  - `amount_paid`: lo que el usuario declara haber pagado. Puede ser menor (pago parcial), igual (pago total), o mayor (pago con extra) al `amount_due`.
+  - **Status derivado** (NO almacenado): `amount_paid >= amount_due` → `"paid"` (verde); `0 < amount_paid < amount_due` → `"partial"` (amarillo); sin registro → `"pending"`. La función `computePaymentStatus()` en `lib/domain/payments.ts` es la única fuente de esta lógica.
+  - **NO auto-detectar**: registrar un `transfer_in` en la cuenta NO marca el ciclo como pagado. Son dos acciones independientes. El `transfer_in` solo afecta el saldo contable; la confirmación de pago es una declaración del usuario.
+  - `paid_date`: fecha en que el usuario realizó el pago en su banco (puede diferir de la fecha del ciclo).
 
 ## Schema DB — Cambios recientes
 - `accounts` → columna `opening_balance_carryover REAL` (arrastre opaco al onboardear)
 - `income_sources` → columna `custom_interval_days INTEGER` (para frecuencia custom)
 - `user_preferences` → tabla nueva (key TEXT PK, value TEXT) para preferencias UI
 - `UpdateAccountInput` incluye `opening_balance_carryover?: number`
+- `cycle_payments` → tabla nueva. Columnas: `id`, `account_id`, `cycle_month` (YYYY-MM), `amount_due`, `amount_paid`, `paid_date`, `notes`, `created_at`. UNIQUE en `(account_id, cycle_month)`.
 
 ## Base de datos — Archivos y estado
 - **Archivos DB ignorados en git**: `finkhy.db`, `finkhy.db-shm`, `finkhy.db-wal`, `finkhy_seed.sql`
@@ -409,3 +418,35 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 
 #### 11.4 — Documentación de arquitectura (commit)
 - [x] 11.4.1 Crear `docs/architecture.md` (capas, carpetas, consumidores, convenciones, timezone, decimales)
+
+### Fase 12 — Confirmación de Pagos por Ciclo
+
+**Convención:** `[ ]` pendiente · `[x]` completado · `![]` decisión descubierta durante implementación
+
+#### 12.0 — Documentación previa (commit)
+- [x] 12.0.1 Agregar tracking de Fase 12 al CLAUDE.md
+- [x] 12.0.2 Documentar reglas de dominio: semántica de `cycle_payments`, status derivado, constraint UNIQUE
+
+#### 12.1 — Data model + domain + repo + API (commit)
+- [ ] 12.1.1 Agregar tabla `cycle_payments` a `schema.sql`
+- [ ] 12.1.2 Agregar `CyclePayment` type a `lib/types.ts`
+- [ ] 12.1.3 Crear `lib/domain/payments.ts` (`computePaymentStatus`, `computeCycleAmountDue`)
+- [ ] 12.1.4 Crear `lib/repositories/cycle-payments.repo.ts`
+- [ ] 12.1.5 Crear API routes: `cycle-payments/route.ts` + `cycle-payments/[id]/route.ts`
+- [ ] 12.1.6 Export desde `lib/domain/index.ts`
+- [ ] 12.1.7 Tests: `__tests__/domain-payments.test.ts`
+- [ ] 12.1.8 Verificar: `npm run check`
+
+#### 12.2 — UI: ConfirmPaymentDialog + NextCyclePreview (commit)
+- [ ] 12.2.1 Crear `ConfirmPaymentDialog.tsx` (FormDialog + SlideToConfirm)
+- [ ] 12.2.2 Modificar `NextCyclePreview.tsx`: footer con status de pago + botón confirmar
+- [ ] 12.2.3 Modificar `app/accounts/[id]/page.tsx`: consultar cycle_payments, pasar a BillingCycle
+- [ ] 12.2.4 Verificar en browser: confirmar pago, pago parcial, deshacer
+
+#### 12.3 — UI: Dashboard indicators (commit)
+- [ ] 12.3.1 Modificar `AccountMetaCredit.tsx`: "Pago" refleja confirmación
+- [ ] 12.3.2 Modificar `CardAlertsTable.tsx`: DateRow refleja confirmación
+- [ ] 12.3.3 Modificar `app/api/dashboard/summary/route.ts`: incluir payment status
+- [ ] 12.3.4 Modificar `AccountMonthlyTable.tsx`: columna de payment status
+- [ ] 12.3.5 Verificar en browser: dashboard refleja pagos confirmados
+- [ ] 12.3.6 Verificar: `npm run check`

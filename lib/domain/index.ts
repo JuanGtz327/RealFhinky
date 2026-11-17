@@ -6,3 +6,4 @@ export * from "./balance";
 export * from "./breakdown";
 export * from "./kpis";
 export * from "./account-detail";
+export * from "./payments";

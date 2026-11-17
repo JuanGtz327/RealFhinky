@@ -70,3 +70,14 @@ export interface IncomeEntry {
   notes?: string;
   created_at: string;
 }
+
+export interface CyclePayment {
+  id: string;
+  account_id: string;
+  cycle_month: string;
+  amount_due: number;
+  amount_paid: number;
+  paid_date: string;
+  notes?: string;
+  created_at: string;
+}
