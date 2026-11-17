@@ -94,6 +94,28 @@ export class IncomeRepository {
     return rows[0]?.total ?? 0;
   }
 
+  findEntriesBySourceAndMonth(sourceId: string, yearMonth: string): IncomeEntry[] {
+    return this.db.query<IncomeEntry>(
+      "SELECT * FROM income_entries WHERE income_source_id = ? AND strftime('%Y-%m', date) = ? ORDER BY date DESC",
+      [sourceId, yearMonth]
+    );
+  }
+
+  deleteEntry(id: string): void {
+    this.db.execute("DELETE FROM income_entries WHERE id = ?", [id]);
+  }
+
+  findEntriesByMonthGrouped(yearMonth: string): Map<string, IncomeEntry[]> {
+    const entries = this.findEntriesByMonth(yearMonth);
+    const grouped = new Map<string, IncomeEntry[]>();
+    for (const e of entries) {
+      const existing = grouped.get(e.income_source_id) ?? [];
+      existing.push(e);
+      grouped.set(e.income_source_id, existing);
+    }
+    return grouped;
+  }
+
   private deserializeSource(row: IncomeSource): IncomeSource {
     return { ...row, is_variable: Boolean(row.is_variable), is_active: Boolean(row.is_active) };
   }

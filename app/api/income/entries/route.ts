@@ -13,16 +13,25 @@ const CreateEntrySchema = z.object({
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const month = searchParams.get("month");
+    const month    = searchParams.get("month");
     const sourceId = searchParams.get("source_id");
-    const repo = new IncomeRepository(getDb());
+    const repo     = new IncomeRepository(getDb());
 
-    const entries = month
-      ? repo.findEntriesByMonth(month)
-      : sourceId
-      ? repo.findEntriesBySource(sourceId)
-      : [];
+    if (sourceId && month) {
+      const entries = repo.findEntriesBySourceAndMonth(sourceId, month);
+      return NextResponse.json({ entries });
+    }
 
+    if (month && !sourceId) {
+      const grouped  = repo.findEntriesByMonthGrouped(month);
+      const bySource: Record<string, unknown[]> = {};
+      for (const [id, arr] of grouped.entries()) {
+        bySource[id] = arr;
+      }
+      return NextResponse.json({ bySource });
+    }
+
+    const entries = sourceId ? repo.findEntriesBySource(sourceId) : [];
     return NextResponse.json({ entries });
   } catch {
     return NextResponse.json({ error: "Error al obtener entradas de ingreso" }, { status: 500 });

@@ -450,3 +450,49 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 - [x] 12.3.4 Modificar `AccountMonthlyTable.tsx`: columna de payment status
 - [x] 12.3.5 Verificar en browser: dashboard refleja pagos confirmados
 - [x] 12.3.6 Verificar: `npm run check`
+
+### Fase 13 — Confirmación de Ingresos
+
+**Convención:** `[ ]` pendiente · `[x]` completado · `![]` decisión descubierta durante implementación
+**Plan completo:** `docs/fase-13-confirmacion-ingresos.md`
+
+#### 13.0 — Documentación previa (commit)
+- [x] 13.0.1 Guardar plan en `docs/fase-13-confirmacion-ingresos.md`
+- [x] 13.0.2 Agregar tracking de Fase 13 al CLAUDE.md
+- [x] 13.0.3 Documentar reglas de dominio: semántica de income confirmation, blending, double-counting fix
+
+#### 13.A — Domain Logic (commit)
+- [x] 13.A.1 Crear `lib/domain/income.ts` (`expectedPaymentCount`, `projectMonthlyIncome` canónico, `computeBlendedIncome`, `computeMonthlyNomina`, `computeIncomeConfirmationStatus`)
+- [x] 13.A.2 Extender `lib/domain/types.ts` (BlendedIncomeResult, MonthlyNominaResult, IncomeConfirmationStatus, extender FlowRow)
+- [x] 13.A.3 Actualizar `lib/domain/index.ts` barrel export
+
+#### 13.B — Bug Fix + Consolidación (commit)
+- [x] 13.B.1 Fix `lib/utils/forecast.ts`: custom frequency debe usar `Math.round(30/days)`
+- [x] 13.B.2 Eliminar `projectMonthlyIncome` duplicado de `flow/page.tsx`, importar desde domain
+- [x] 13.B.3 Fix discrepancia `flow/page.tsx:76`: usar `transfer_out` en vez de `purchase` para transferencias
+
+#### 13.C — Repository (commit)
+- [x] 13.C.1 Agregar `findEntriesBySourceAndMonth` a `income.repo.ts`
+- [x] 13.C.2 Agregar `deleteEntry` a `income.repo.ts`
+- [x] 13.C.3 Agregar `findEntriesByMonthGrouped` a `income.repo.ts`
+
+#### 13.D — API Routes (commit)
+- [x] 13.D.1 Crear `app/api/income/entries/[id]/route.ts` (DELETE + PUT)
+- [x] 13.D.2 Actualizar `app/api/income/entries/route.ts` (query combinada source_id + month)
+
+#### 13.E — Flow Table Logic (commit)
+- [x] 13.E.1 Reescribir `flow/page.tsx` FlowContent: remaining-only para mes actual, blended para futuros
+- [x] 13.E.2 Mes actual: abonos/transferencias visual-only (no afectan Ingresos/Gastos Totales)
+- [x] 13.E.3 Mes actual: gastos_totales = tarjetas + loans (sin compras débito ya hechas)
+- [x] 13.E.4 Actualizar `MonthlyFlowTable.tsx`: badge confirmación en celda Nómina
+
+#### 13.F — Confirmation UI (commit)
+- [x] 13.F.1 Crear `ConfirmIncomeDialog.tsx` (mirrors ConfirmPaymentDialog + SlideToConfirm)
+- [x] 13.F.2 Crear `IncomeSourceCard.tsx` (card interactiva con progreso de confirmación)
+- [x] 13.F.3 Modificar `app/forecast/page.tsx`: usar IncomeSourceCard con status
+
+#### 13.G — Tests (commit)
+- [x] 13.G.1 Crear `__tests__/domain-income.test.ts` (blending, projection, confirmation status)
+- [x] 13.G.2 Actualizar `__tests__/forecast.test.ts` (custom frequency fix)
+- [ ] 13.G.3 Actualizar `__tests__/domain-flow.test.ts` (blended income + current-month semantics)
+- [x] 13.G.4 Verificar: `npm run check`

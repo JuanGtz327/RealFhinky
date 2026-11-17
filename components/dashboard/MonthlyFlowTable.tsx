@@ -18,6 +18,11 @@ export interface FlowRow {
   gastos_totales: number;
   capital_fin: number;
   variacion: number | null;
+  nomina_display?: number;
+  nomina_confirmed?: number;
+  nomina_remaining?: number;
+  is_projected?: boolean;
+  is_partial?: boolean;
   [key: string]: unknown;
 }
 
@@ -54,7 +59,25 @@ export function MonthlyFlowTable({ rows, loanColumns, currentMonth }: MonthlyFlo
       ),
     },
     { key: "capital_inicio",    header: "Capital Inicio",   align: "right", render: (v) => <CurrencyCell amount={Number(v)} dimIfZero /> },
-    { key: "nomina",            header: "Nómina",            align: "right", render: (v) => <CurrencyCell amount={Number(v)} dimIfZero colorize /> },
+    {
+      key: "nomina",
+      header: "Nómina",
+      align: "right" as const,
+      render: (v, row) => {
+        const r = row as FlowRow;
+        if (r.month === currentMonth && r.nomina_display !== undefined && (r.nomina_confirmed ?? 0) > 0) {
+          return (
+            <div className="flex items-center justify-end gap-1.5">
+              <CurrencyCell amount={r.nomina_display} dimIfZero colorize />
+              <span className="text-[10px] font-medium px-1 py-0.5 rounded bg-[var(--color-border)] text-[var(--color-muted)]">
+                {r.nomina_confirmed}✓
+              </span>
+            </div>
+          );
+        }
+        return <CurrencyCell amount={Number(v)} dimIfZero colorize />;
+      },
+    },
     { key: "abonos",            header: "Abonos",            align: "right", render: (v) => <CurrencyCell amount={Number(v)} dimIfZero colorize /> },
     { key: "ingresos_totales",  header: "Ingresos Totales",  align: "right", render: (v) => <CurrencyCell amount={Number(v)} colorize /> },
     { key: "transferencias",    header: "Transferencias",    align: "right", render: (v) => <CurrencyCell amount={Number(v)} dimIfZero /> },

@@ -31,8 +31,11 @@ export function projectIncomeForMonth(source: IncomeSource, yearMonth: string): 
       return source.base_amount * 2;
     case "weekly":
       return source.base_amount * 4;
-    case "custom":
-      return source.base_amount;
+    case "custom": {
+      const days = source.custom_interval_days;
+      if (!days || days <= 0) return source.base_amount;
+      return source.base_amount * Math.round(30 / days);
+    }
     default:
       return 0;
   }

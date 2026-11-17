@@ -37,6 +37,11 @@ describe("projectIncomeForMonth", () => {
     const src = mockSource({ start_date: "2025-06-01" });
     expect(projectIncomeForMonth(src, "2025-05")).toBe(0);
   });
+
+  it("custom con 15 días retorna base_amount * 2", () => {
+    const src = mockSource({ frequency: "custom", base_amount: 10000, custom_interval_days: 15 });
+    expect(projectIncomeForMonth(src, "2025-06")).toBe(20000);
+  });
 });
 
 describe("generateForecast", () => {

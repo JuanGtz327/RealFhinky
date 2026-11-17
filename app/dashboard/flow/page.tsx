@@ -4,6 +4,7 @@ import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { IncomeRepository } from "@/lib/repositories/income.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
 import { calcVariation, formatMXN } from "@/lib/utils/formatters";
+import { computeMonthlyNomina } from "@/lib/domain/income";
 import { format } from "date-fns";
 import { MonthlyFlowTable } from "@/components/dashboard/MonthlyFlowTable";
 import { YearSelector } from "@/components/ui/year-selector";
@@ -13,21 +14,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 const CURRENT_MONTH = format(new Date(), "yyyy-MM");
-
-/** Proyecta cuánto ingresa en un mes dado una fuente de ingreso activa. */
-function projectMonthlyIncome(source: { frequency: string; base_amount: number; custom_interval_days?: number }): number {
-  switch (source.frequency) {
-    case "weekly":    return source.base_amount * 4;
-    case "biweekly":  return source.base_amount * 2;
-    case "monthly":   return source.base_amount;
-    case "custom": {
-      const days = source.custom_interval_days;
-      if (!days || days <= 0) return source.base_amount;
-      return source.base_amount * Math.round(30 / days);
-    }
-    default: return source.base_amount;
-  }
-}
 
 function FlowContent({ year }: { year: string }) {
   const db      = getDb();
@@ -41,39 +27,54 @@ function FlowContent({ year }: { year: string }) {
   const debitAccounts  = accRepo.findByType("debit");
   const incomeSources  = incRepo.findAllSources();
 
-  // Capital base = saldo actual de todas las cuentas débito (patrimonio líquido real)
   const patrimonioActual = debitAccounts.reduce((s, a) => s + a.current_balance, 0);
 
-  // Proyección mensual de nómina (para meses sin income_entries registradas)
-  const nominaProyectada = incomeSources.reduce((s, src) => s + projectMonthlyIncome(src), 0);
-
-  const flowRows = [];
-  // Para el año en curso: anclar el capital_inicio del mes actual al patrimonio real.
-  // Meses pasados del año = se calculan hacia atrás con 0 de movimiento (sin historial).
-  // Para años distintos al actual: todo parte de 0.
   const currentYear = format(new Date(), "yyyy");
   let prevCapitalFin: number | null = null;
 
+  const flowRows = [];
+
   for (let m = 1; m <= 12; m++) {
-    const monthStr = `${year}-${String(m).padStart(2, "0")}`;
+    const monthStr  = `${year}-${String(m).padStart(2, "0")}`;
     const isCurrent = monthStr === CURRENT_MONTH;
     const isFuture  = monthStr > CURRENT_MONTH;
 
-    // Nómina: si hay entradas registradas para ese mes, usarlas.
-    // Si es mes futuro (o actual sin entradas), proyectar desde las fuentes.
-    const registeredIncome = incRepo.findEntriesByMonth(monthStr);
-    const hasRegistered = registeredIncome.length > 0;
-    const nomina = hasRegistered
-      ? registeredIncome.reduce((s, e) => s + e.amount, 0)
-      : (isFuture || isCurrent) && year === currentYear
-        ? nominaProyectada
-        : 0;
+    // Build entries map for this month grouped by source id
+    const monthEntries   = incRepo.findEntriesByMonth(monthStr);
+    const entriesBySource = new Map<string, typeof monthEntries>();
+    for (const e of monthEntries) {
+      const existing = entriesBySource.get(e.income_source_id) ?? [];
+      existing.push(e);
+      entriesBySource.set(e.income_source_id, existing);
+    }
+
+    let nomina: number;
+    let nomina_display: number | undefined;
+    let nomina_confirmed: number | undefined;
+    let nomina_remaining: number | undefined;
+    let is_partial: boolean | undefined;
+
+    if (isCurrent && year === currentYear) {
+      const displayResult    = computeMonthlyNomina(incomeSources, entriesBySource, "display");
+      const remainingResult  = computeMonthlyNomina(incomeSources, entriesBySource, "remaining-only");
+      nomina            = remainingResult.remaining;
+      nomina_display    = displayResult.display;
+      nomina_confirmed  = displayResult.confirmedCount;
+      nomina_remaining  = remainingResult.remaining;
+      is_partial        = displayResult.confirmedCount > 0 && displayResult.confirmedCount < displayResult.expectedCount;
+    } else if (isFuture && year === currentYear) {
+      const blendedResult = computeMonthlyNomina(incomeSources, entriesBySource, "blended");
+      nomina     = blendedResult.blended;
+      is_partial = blendedResult.confirmedCount > 0 && blendedResult.confirmedCount < blendedResult.expectedCount;
+    } else {
+      nomina = monthEntries.reduce((s, e) => s + e.amount, 0);
+    }
 
     let abonos = 0, transferencias = 0;
     for (const acc of debitAccounts) {
       const txs = txRepo.findByAccount(acc.id).filter((t) => t.date.startsWith(monthStr));
       abonos         += txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-      transferencias += txs.filter((t) => t.type === "purchase").reduce((s, t) => s + t.amount, 0);
+      transferencias += txs.filter((t) => t.type === "transfer_out").reduce((s, t) => s + t.amount, 0);
     }
 
     let tarjetas = 0;
@@ -86,24 +87,36 @@ function FlowContent({ year }: { year: string }) {
       account_id: acc.id, name: acc.name,
       amount: txRepo.sumByAccountAndMonth(acc.id, monthStr),
     }));
-    const loansTotal       = loans.reduce((s, l) => s + l.amount, 0);
-    const ingresos_totales = nomina + abonos;
-    const gastos_totales   = transferencias + tarjetas + loansTotal;
+    const loansTotal = loans.reduce((s, l) => s + l.amount, 0);
 
-    // Anclar el mes actual al patrimonio real; el resto se encadena.
+    let ingresos_totales: number;
+    let gastos_totales: number;
+
+    if (isCurrent && year === currentYear) {
+      // Only pending obligations: nomina remaining + no abonos/transfers (Fase 14)
+      ingresos_totales = nomina;
+      gastos_totales   = tarjetas + loansTotal;
+    } else {
+      ingresos_totales = nomina + abonos;
+      gastos_totales   = transferencias + tarjetas + loansTotal;
+    }
+
     let capital_inicio: number;
     if (isCurrent && year === currentYear) {
       capital_inicio = patrimonioActual;
     } else {
       capital_inicio = prevCapitalFin ?? 0;
     }
-    const capital_fin: number = capital_inicio + ingresos_totales - gastos_totales;
+    const capital_fin = capital_inicio + ingresos_totales - gastos_totales;
+
+    const hasRegistered   = monthEntries.length > 0;
+    const is_projected    = !hasRegistered && (isFuture || isCurrent) && year === currentYear;
 
     flowRows.push({
-      month: monthStr, capital_inicio, nomina, abonos, ingresos_totales,
+      month: monthStr, capital_inicio, nomina: nomina_display ?? nomina, abonos, ingresos_totales,
       transferencias, tarjetas, loans, gastos_totales, capital_fin,
       variacion: calcVariation(capital_inicio, capital_fin),
-      is_projected: !hasRegistered && (isFuture || isCurrent),
+      nomina_display, nomina_confirmed, nomina_remaining, is_projected, is_partial,
     });
     prevCapitalFin = capital_fin;
   }

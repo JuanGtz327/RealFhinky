@@ -23,6 +23,11 @@ export interface FlowRow {
   gastos_totales: number;
   capital_fin: number;
   variacion: number | null;
+  nomina_display?: number;
+  nomina_confirmed?: number;
+  nomina_remaining?: number;
+  is_projected?: boolean;
+  is_partial?: boolean;
 }
 
 export interface DebitAccountSummary {
@@ -56,4 +61,28 @@ export interface AccountKpis {
   totalCapital: number;
   totalDeuda: number;
   totalDisponible: number;
+}
+
+export interface BlendedIncomeResult {
+  confirmedTotal: number;
+  remainingProjected: number;
+  blendedTotal: number;
+  confirmedCount: number;
+  expectedCount: number;
+}
+
+export interface MonthlyNominaResult {
+  display: number;
+  remaining: number;
+  blended: number;
+  confirmedCount: number;
+  expectedCount: number;
+}
+
+export interface IncomeConfirmationStatus {
+  status: "confirmed" | "partial" | "pending";
+  confirmedCount: number;
+  expectedCount: number;
+  confirmedTotal: number;
+  remainingAmount: number;
 }
