@@ -2,11 +2,12 @@ import { getDb } from "@/lib/db";
 import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
+import { CyclePaymentsRepository } from "@/lib/repositories/cycle-payments.repo";
 import { notFound } from "next/navigation";
-import { format, addMonths } from "date-fns";
+import { format, addMonths, subMonths } from "date-fns";
 import { computeBillingPeriod } from "@/lib/utils/billing";
 import { getCreditUtilizationAlert, getCutDateAlert, getPaymentDateAlert, getAnnualFeeAlert } from "@/lib/utils/alerts";
-import { computeEffectiveMonth, computeBalanceDiscrepancy, computeCreditUtilization } from "@/lib/domain";
+import { computeEffectiveMonth, computeBalanceDiscrepancy, computeCreditUtilization, computePaymentStatus } from "@/lib/domain";
 import { getMsiProgress } from "@/lib/utils/msi";
 import { formatMXN } from "@/lib/utils/formatters";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -19,7 +20,7 @@ import { AccountMetaDebit } from "@/components/accounts/AccountMetaDebit";
 import { OpeningBalanceWizard } from "@/components/accounts/OpeningBalanceWizard";
 
 import Link from "next/link";
-import { Pencil, ChevronLeft, ChevronRight, CreditCard, CalendarRange, BarChart2, ArrowUpDown } from "lucide-react";
+import { Pencil, ChevronLeft, ChevronRight, CreditCard, CalendarRange, BarChart2, ArrowUpDown, AlertTriangle } from "lucide-react";
 
 const REAL_YEAR   = new Date().getFullYear();
 const MONTHS = ["01","02","03","04","05","06","07","08","09","10","11","12"];
@@ -32,10 +33,11 @@ export default function AccountDetailPage({
   params: { id: string };
   searchParams: { year?: string };
 }) {
-  const db      = getDb();
-  const accRepo = new AccountsRepository(db);
-  const txRepo  = new TransactionsRepository(db);
-  const msiRepo = new MsiRepository(db);
+  const db       = getDb();
+  const accRepo  = new AccountsRepository(db);
+  const txRepo   = new TransactionsRepository(db);
+  const msiRepo  = new MsiRepository(db);
+  const cpRepo   = new CyclePaymentsRepository(db);
 
   const account = accRepo.findById(params.id);
   if (!account) notFound();
@@ -48,6 +50,10 @@ export default function AccountDetailPage({
   // If today is past the cut date, that billing cycle has already closed.
   // Use the NEXT month as the effective reference so paid/remaining counts correctly.
   const effectiveMonth = computeEffectiveMonth(account.cut_date);
+
+  // ── Pagos confirmados por ciclo ──────────────────────────
+  const cyclePayments = isCredit ? cpRepo.findByAccount(params.id) : [];
+  const paymentByMonth = new Map(cyclePayments.map((p) => [p.cycle_month, p]));
 
   // ── Tabla mes a mes ───────────────────────────────────────
   const monthlyRows = MONTHS.map((m) => {
@@ -66,7 +72,9 @@ export default function AccountDetailPage({
     const msi  = msiRepo.sumByAccountAndMonth(account.id, month);
     const total = isCredit ? (real + msi) : real;
 
-    return { month, real, msi, total, isFuture, isCurrent };
+    const payment = paymentByMonth.get(month) ?? null;
+    const paymentStatus = isCredit ? computePaymentStatus(payment, total).status : undefined;
+    return { month, real, msi, total, isFuture, isCurrent, paymentStatus };
   });
 
   // ── MSI activos (transacciones MSI con cuotas futuras) ───
@@ -154,6 +162,7 @@ export default function AccountDetailPage({
         .filter((tx) => tx.type === "transfer_in" && tx.date >= periodStart && tx.date <= periodEnd)
         .map((tx) => ({ merchant: tx.merchant ?? tx.description ?? "Abono / Devolución", amount: tx.amount, date: tx.date })),
       isCurrent: cycleMonth === effectiveMonth,
+      payment: paymentByMonth.get(cycleMonth) ?? null,
     };
   });
 
@@ -177,6 +186,24 @@ export default function AccountDetailPage({
   const payAlert     = account.payment_due_date ? getPaymentDateAlert(account.payment_due_date)  : null;
   const feeAlert     = account.annual_fee_date  ? getAnnualFeeAlert(account.annual_fee_date)     : null;
 
+  // payment_status para AccountMetaCredit = ÚLTIMO CICLO CERRADO (effectiveMonth - 1)
+  // El effectiveMonth es el ciclo abierto; solo los ciclos pasados pueden confirmarse
+  const lastClosedCycleMonth = format(
+    subMonths(new Date(effectiveMonth + "-01T12:00:00"), 1),
+    "yyyy-MM"
+  );
+  const lastClosedPayment = paymentByMonth.get(lastClosedCycleMonth) ?? null;
+  const lastClosedRow = monthlyRows.find((r) => r.month === lastClosedCycleMonth);
+  const lastClosedAmountDue = lastClosedRow ? lastClosedRow.total : 0;
+  const effectiveMonthPaymentStatus = isCredit
+    ? computePaymentStatus(lastClosedPayment, lastClosedAmountDue).status
+    : undefined;
+
+  // Conteo de ciclos pasados sin confirmar (para banner de alerta)
+  const unpaidPastCount = isCredit
+    ? monthlyRows.filter((r) => !r.isFuture && !r.isCurrent && r.paymentStatus === "pending").length
+    : 0;
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -196,6 +223,16 @@ export default function AccountDetailPage({
           <Pencil className="w-3.5 h-3.5" /> Editar
         </Link>
       </div>
+
+      {/* Banner: pagos pendientes de confirmar */}
+      {isCredit && unpaidPastCount > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/8 px-4 py-3">
+          <AlertTriangle className="w-4 h-4 text-[var(--color-warning)] shrink-0" />
+          <p className="text-sm text-[var(--color-foreground)]">
+            Tienes <span className="font-semibold">{unpaidPastCount} {unpaidPastCount === 1 ? "ciclo sin confirmar" : "ciclos sin confirmar"}</span> en el año. Navega a los meses pasados en Próximo corte para registrar los pagos.
+          </p>
+        </div>
+      )}
 
       {/* Wizard saldo inicial — solo crédito con saldo y sin transacciones */}
       {isCredit && account.current_balance > 0 && recentTx.length === 0 && (
@@ -222,6 +259,7 @@ export default function AccountDetailPage({
           payAlert={payAlert}
           feeAlert={feeAlert}
           balanceDiff={balanceDiff ?? undefined}
+          effectiveMonthPaymentStatus={effectiveMonthPaymentStatus}
         />
       )}
       {isDebit && (
@@ -275,6 +313,7 @@ export default function AccountDetailPage({
               cycles={billingCycles}
               effectiveMonth={effectiveMonth}
               cutDate={account.cut_date ?? undefined}
+              accountId={account.id}
             />
           </div>
         </section>

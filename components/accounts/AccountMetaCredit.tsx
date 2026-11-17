@@ -4,9 +4,10 @@ import { KPICard } from "@/components/ui/kpi-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatMXN } from "@/lib/utils/formatters";
 import type { AlertLevel } from "@/lib/utils/alerts";
-import { ShieldCheck, ShieldAlert, CreditCard, Wallet, Scissors, CalendarCheck, Tag } from "lucide-react";
+import { ShieldCheck, ShieldAlert, CreditCard, Wallet, Scissors, CalendarCheck, Tag, CheckCircle2, AlertCircle } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import type { ReactNode } from "react";
+import type { PaymentStatus } from "@/lib/domain/payments";
 
 interface DateAlert { level: AlertLevel; daysRemaining: number }
 
@@ -23,6 +24,7 @@ interface AccountMetaCreditProps {
   payAlert: DateAlert | null;
   feeAlert: DateAlert | null;
   balanceDiff?: number;
+  effectiveMonthPaymentStatus?: PaymentStatus;
 }
 
 function formatShortDate(date: Date): string {
@@ -55,7 +57,7 @@ interface DateEvent {
 export function AccountMetaCredit({
   creditLimit, currentBalance, cutDate, paymentDueDate,
   annualFee, annualFeeDate, utilization, alertLevel,
-  cutAlert, payAlert, feeAlert, balanceDiff,
+  cutAlert, payAlert, feeAlert, balanceDiff, effectiveMonthPaymentStatus,
 }: AccountMetaCreditProps) {
   const available = creditLimit - currentBalance;
   const hasDiff = balanceDiff !== undefined && Math.abs(balanceDiff) > 1;
@@ -76,13 +78,31 @@ export function AccountMetaCredit({
 
   if (paymentDueDate && payAlert) {
     const date = nextDayOfMonthDate(paymentDueDate);
-    dateEvents.push({
-      icon: <CalendarCheck className="w-3.5 h-3.5" />,
-      label: "Pago",
-      mainDate: formatShortDate(date),
-      daysText: daysLabel(payAlert.daysRemaining),
-      urgency: payAlert.level,
-    });
+    if (effectiveMonthPaymentStatus === "paid") {
+      dateEvents.push({
+        icon: <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-success)]" />,
+        label: "Pago",
+        mainDate: formatShortDate(date),
+        daysText: "Pagado",
+        urgency: "ok",
+      });
+    } else if (effectiveMonthPaymentStatus === "partial") {
+      dateEvents.push({
+        icon: <AlertCircle className="w-3.5 h-3.5 text-[var(--color-warning)]" />,
+        label: "Pago",
+        mainDate: formatShortDate(date),
+        daysText: "Parcial",
+        urgency: "warning",
+      });
+    } else {
+      dateEvents.push({
+        icon: <CalendarCheck className="w-3.5 h-3.5" />,
+        label: "Pago",
+        mainDate: formatShortDate(date),
+        daysText: daysLabel(payAlert.daysRemaining),
+        urgency: payAlert.level,
+      });
+    }
   }
 
   if (annualFeeDate && feeAlert) {

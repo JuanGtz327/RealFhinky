@@ -4,6 +4,8 @@ import { DataTable, Column } from "@/components/ui/data-table";
 import { CurrencyCell } from "@/components/ui/currency-cell";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatMonthShort } from "@/lib/utils/formatters";
+import { CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import type { PaymentStatus } from "@/lib/domain/payments";
 
 interface MonthRow {
   month: string;
@@ -12,6 +14,7 @@ interface MonthRow {
   total: number;
   isFuture: boolean;
   isCurrent: boolean;
+  paymentStatus?: PaymentStatus;
 }
 
 type Row = Record<string, unknown>;
@@ -42,6 +45,34 @@ export function AccountMonthlyTable({ rows, isCredit }: { rows: MonthRow[]; isCr
         );
       },
     },
+    ...(isCredit ? [
+      {
+        key: "paymentStatus" as const,
+        header: "Pago",
+        render: (_v: unknown, row: Row) => {
+          const status = row.paymentStatus as PaymentStatus | undefined;
+          if (row.isFuture || row.isCurrent) return <span className="text-[var(--color-muted)] text-xs">—</span>;
+          if (status === "paid") return (
+            <span className="flex items-center gap-1 text-[var(--color-success)]">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium">Pagado</span>
+            </span>
+          );
+          if (status === "partial") return (
+            <span className="flex items-center gap-1 text-[var(--color-warning)]">
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium">Parcial</span>
+            </span>
+          );
+          return (
+            <span className="flex items-center gap-1 text-[var(--color-muted)]">
+              <Clock className="w-3.5 h-3.5" />
+              <span className="text-xs">Pendiente</span>
+            </span>
+          );
+        },
+      },
+    ] : []),
     ...(isCredit ? [
       {
         key: "real" as const,

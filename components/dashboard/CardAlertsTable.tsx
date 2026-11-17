@@ -1,6 +1,7 @@
 import { formatMXN } from "@/lib/utils/formatters";
-import { CreditCard, AlertTriangle } from "lucide-react";
+import { CreditCard, AlertTriangle, CheckCircle2, AlertCircle } from "lucide-react";
 import type { AlertLevel } from "@/lib/utils/alerts";
+import type { PaymentStatus } from "@/lib/domain/payments";
 
 interface DateAlert { level: AlertLevel; daysRemaining: number }
 
@@ -16,6 +17,7 @@ interface CardAlert {
   cut_alert?: DateAlert | null;
   payment_alert?: DateAlert | null;
   fee_alert?: DateAlert | null;
+  payment_status?: PaymentStatus;
 }
 
 interface CardAlertsProps {
@@ -105,7 +107,28 @@ export function CardAlertsTable({ cards }: CardAlertsProps) {
             {/* Fechas */}
             <div className="space-y-2 pt-2 border-t border-[var(--color-border)]/50">
               <DateRow label="Fecha de corte"  day={card.cut_date}         alert={card.cut_alert} />
-              <DateRow label="Límite de pago"  day={card.payment_due_date} alert={card.payment_alert} />
+              {card.payment_status === "paid" ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[var(--color-muted)]">Límite de pago</span>
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-success)]" />
+                    <span className="text-xs font-semibold text-[var(--color-success)]">Pagado</span>
+                  </div>
+                </div>
+              ) : card.payment_status === "partial" ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-[var(--color-muted)]">Límite de pago</span>
+                  <div className="flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-[var(--color-warning)]" />
+                    <span className="text-xs font-semibold text-[var(--color-warning)]">Pago parcial</span>
+                    {card.payment_due_date && (
+                      <span className={`text-xs ${alertStyles[card.payment_alert?.level ?? "ok"]}`}>· Día {card.payment_due_date}</span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <DateRow label="Límite de pago"  day={card.payment_due_date} alert={card.payment_alert} />
+              )}
               {card.annual_fee !== undefined && card.annual_fee > 0 && card.annual_fee_date && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-[var(--color-muted)]">Anualidad</span>

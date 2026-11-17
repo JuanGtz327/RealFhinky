@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { formatMXN, formatMonthLabel } from "@/lib/utils/formatters";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { ChevronLeft, ChevronRight, Scissors, CalendarRange, ShoppingBag, ArrowDownLeft, Tag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Scissors, CalendarRange, ShoppingBag, ArrowDownLeft, Tag, CheckCircle2, AlertCircle, Undo2 } from "lucide-react";
+import { computePaymentStatus } from "@/lib/domain/payments";
+import { ConfirmPaymentDialog } from "@/components/accounts/ConfirmPaymentDialog";
+import { ConfirmPaymentButton } from "@/components/accounts/ConfirmPaymentButton";
+import type { CyclePayment } from "@/lib/types";
 
 export interface NextCycleMsiItem {
   merchant: string;
@@ -32,17 +36,20 @@ export interface BillingCycle {
   directItems: NextCycleDirectItem[];
   creditItems: NextCycleCreditItem[];
   isCurrent: boolean;
+  payment?: CyclePayment | null;
 }
 
 interface NextCyclePreviewProps {
   cycles: BillingCycle[];
   effectiveMonth: string;
   cutDate?: number;
+  accountId: string;
 }
 
-export function NextCyclePreview({ cycles, effectiveMonth, cutDate }: NextCyclePreviewProps) {
+export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }: NextCyclePreviewProps) {
   const defaultIndex = Math.max(0, cycles.findIndex((c) => c.isCurrent));
   const [idx, setIdx] = useState(defaultIndex);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const cycle = cycles[idx];
   const charges = cycle.msiItems.reduce((s, i) => s + i.amount, 0) + cycle.directItems.reduce((s, i) => s + i.amount, 0);
@@ -53,6 +60,16 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate }: NextCycleP
   const isFuture = cycle.cycleMonth > effectiveMonth;
 
   const footerLabel = isPast ? "Total facturado" : isFuture ? "Total proyectado" : "Total próximo corte";
+  const payStatus = computePaymentStatus(cycle.payment, total);
+  // Solo ciclos cerrados (pasados) se pueden confirmar — el ciclo actual sigue abierto
+  const canConfirm = isPast;
+
+  const handleDeletePayment = async () => {
+    if (!cycle.payment) return;
+    await fetch(`/api/cycle-payments/${cycle.payment.id}`, { method: "DELETE" });
+    // Reload the page to reflect the change
+    window.location.reload();
+  };
 
   return (
     <div className="flex flex-col rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -186,18 +203,85 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate }: NextCycleP
       </div>
 
       {/* Footer */}
-      <div className="mt-auto shrink-0 px-4 py-4 bg-[var(--color-navbar)] rounded-b-lg">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-white/70">{footerLabel}</span>
-          <span className="font-mono font-semibold text-[var(--color-accent)]">{formatMXN(total)}</span>
+      {payStatus.status === "paid" ? (
+        <div className="mt-auto shrink-0 px-4 py-4 bg-[var(--color-success)] rounded-b-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-white" />
+              <span className="text-sm font-semibold text-white">Pagado</span>
+              {cycle.payment?.paid_date && (
+                <span className="text-xs text-white/70">{cycle.payment.paid_date}</span>
+              )}
+            </div>
+            <span className="font-mono font-semibold text-white">{formatMXN(payStatus.amountPaid)}</span>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs text-white/60">
+              {cycle.msiItems.length} MSI · {cycle.directItems.length} compras
+            </p>
+            <button
+              onClick={handleDeletePayment}
+              className="flex items-center gap-1 text-xs text-white/60 hover:text-white transition-colors"
+            >
+              <Undo2 className="w-3 h-3" />
+              Deshacer
+            </button>
+          </div>
         </div>
-        <p className="text-xs text-white/40 mt-0.5">
-          {cycle.msiItems.length} MSI · {cycle.directItems.length} compras
-          {(cycle.creditItems ?? []).length > 0 && (
-            <span className="text-[var(--color-success)]/60"> · −{formatMXN(credits)} en abonos</span>
-          )}
-        </p>
-      </div>
+      ) : payStatus.status === "partial" ? (
+        <div className="mt-auto shrink-0 px-4 py-4 bg-[var(--color-warning)] rounded-b-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-white" />
+              <span className="text-sm font-semibold text-white">Pago parcial</span>
+            </div>
+            <span className="font-mono font-semibold text-white">{formatMXN(payStatus.amountPaid)} / {formatMXN(payStatus.amountDue)}</span>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs text-white/70">Pendiente: {formatMXN(payStatus.remaining)}</p>
+            <button
+              onClick={() => setDialogOpen(true)}
+              className="text-xs text-white underline hover:no-underline transition-colors"
+            >
+              Completar pago
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-auto shrink-0 px-4 py-4 bg-[var(--color-navbar)] rounded-b-lg">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="text-sm font-medium text-white/70">{footerLabel}</span>
+              <p className="text-xs text-white/40 mt-0.5">
+                {cycle.msiItems.length} MSI · {cycle.directItems.length} compras
+                {(cycle.creditItems ?? []).length > 0 && (
+                  <span className="text-[var(--color-success)]/60"> · −{formatMXN(credits)} en abonos</span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              {canConfirm && (
+                <ConfirmPaymentButton
+                  onClick={() => setDialogOpen(true)}
+                  variant="dark"
+                />
+              )}
+              <span className="font-mono font-semibold text-[var(--color-accent)]">{formatMXN(total)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dialogOpen && (
+        <ConfirmPaymentDialog
+          open={dialogOpen}
+          onClose={() => setDialogOpen(false)}
+          accountId={accountId}
+          cycleMonth={cycle.cycleMonth}
+          amountDue={total}
+          existingPayment={cycle.payment}
+        />
+      )}
     </div>
   );
 }
