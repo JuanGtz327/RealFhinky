@@ -17,6 +17,8 @@ export interface TarjetaBreakdown {
   bank: string;
   purchases: number;
   msi: number;
+  untracked?: number;
+  flow_adjustment?: number | null;
 }
 
 export interface TransactionDetail {
@@ -62,6 +64,8 @@ export interface FlowRow {
   abonosDetail?: TransactionDetail[];
   transferenciasDetail?: TransactionDetail[];
   nominaSlots?: NominaSourceSlots[];
+  otrosGastos?: { id: string; description: string; amount: number }[];
+  otrosIngresos?: { id: string; description: string; amount: number }[];
 }
 
 export interface DebitAccountSummary {

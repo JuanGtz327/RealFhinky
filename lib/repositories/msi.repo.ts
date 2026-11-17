@@ -47,6 +47,14 @@ export class MsiRepository {
     return rows[0]?.total ?? 0;
   }
 
+  sumPendingFromMonth(accountId: string, fromMonth: string): number {
+    const rows = this.db.query<{ total: number }>(
+      "SELECT COALESCE(SUM(amount), 0) as total FROM msi_installments WHERE account_id = ? AND month >= ?",
+      [accountId, fromMonth]
+    );
+    return rows[0]?.total ?? 0;
+  }
+
   findActiveMsiByAccount(accountId: string, fromMonth: string): MsiInstallment[] {
     return this.db
       .query<MsiInstallment>(

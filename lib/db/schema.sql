@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS accounts (
   annual_fee_date  TEXT,
   is_active                  INTEGER NOT NULL DEFAULT 1,
   opening_balance_carryover  REAL,
+  flow_adjustment            REAL,
   created_at                 TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at                 TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -76,6 +77,16 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS flow_adjustments (
+  id          TEXT PRIMARY KEY,
+  month       TEXT NOT NULL,
+  type        TEXT NOT NULL DEFAULT 'expense' CHECK(type IN ('expense','income')),
+  description TEXT NOT NULL,
+  amount      REAL NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_flow_adjustments_month ON flow_adjustments(month);
 
 CREATE TABLE IF NOT EXISTS cycle_payments (
   id           TEXT PRIMARY KEY,

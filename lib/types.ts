@@ -15,6 +15,7 @@ export interface Account {
   annual_fee_date?: string;
   is_active: boolean;
   opening_balance_carryover?: number;
+  flow_adjustment?: number;
   created_at: string;
   updated_at: string;
 }
@@ -36,6 +37,15 @@ export interface Transaction {
   msi_residual?: number;
   msi_start_date?: string;
   notes?: string;
+  created_at: string;
+}
+
+export interface FlowAdjustment {
+  id: string;
+  month: string;
+  type: "expense" | "income";
+  description: string;
+  amount: number;
   created_at: string;
 }
 

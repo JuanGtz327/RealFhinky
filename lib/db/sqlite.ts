@@ -20,6 +20,29 @@ function getConnection(): Database.Database {
     if (!cols.some((c) => c.name === "account_id")) {
       instance.exec("ALTER TABLE income_sources ADD COLUMN account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL");
     }
+    const accCols = instance.pragma("table_info(accounts)") as { name: string }[];
+    if (!accCols.some((c) => c.name === "flow_adjustment")) {
+      instance.exec("ALTER TABLE accounts ADD COLUMN flow_adjustment REAL");
+    }
+    const tables = instance.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as { name: string }[];
+    if (!tables.some((t) => t.name === "flow_adjustments")) {
+      instance.exec(`
+        CREATE TABLE flow_adjustments (
+          id          TEXT PRIMARY KEY,
+          month       TEXT NOT NULL,
+          type        TEXT NOT NULL DEFAULT 'expense' CHECK(type IN ('expense','income')),
+          description TEXT NOT NULL,
+          amount      REAL NOT NULL,
+          created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX idx_flow_adjustments_month ON flow_adjustments(month);
+      `);
+    } else {
+      const faCols = instance.pragma("table_info(flow_adjustments)") as { name: string }[];
+      if (!faCols.some((c) => c.name === "type")) {
+        instance.exec("ALTER TABLE flow_adjustments ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'");
+      }
+    }
   }
   return instance;
 }

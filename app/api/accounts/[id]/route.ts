@@ -16,6 +16,7 @@ const UpdateAccountSchema = z.object({
   annual_fee: z.number().min(0).optional(),
   annual_fee_date: z.string().optional(),
   is_active: z.boolean().optional(),
+  flow_adjustment: z.number().nullable().optional(),
 });
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {

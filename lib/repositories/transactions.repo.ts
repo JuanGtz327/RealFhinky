@@ -157,6 +157,18 @@ export class TransactionsRepository {
     });
   }
 
+  sumByAccountAndMonth(accountId: string, yearMonth: string): number {
+    const rows = this.db.query<{ total: number }>(
+      `SELECT COALESCE(SUM(amount), 0) as total
+       FROM transactions
+       WHERE account_id = ? AND strftime('%Y-%m', date) = ?
+         AND type IN ('purchase','transfer_out')
+         AND (is_msi = 0 OR is_msi IS NULL)`,
+      [accountId, yearMonth]
+    );
+    return rows[0]?.total ?? 0;
+  }
+
   sumPurchasesByPeriod(accountId: string, periodStart: string, periodEnd: string): number {
     const rows = this.db.query<{ total: number }>(
       `SELECT COALESCE(SUM(amount), 0) as total
@@ -176,18 +188,6 @@ export class TransactionsRepository {
        WHERE account_id = ? AND date >= ? AND date <= ?
          AND type = 'transfer_in'`,
       [accountId, periodStart, periodEnd]
-    );
-    return rows[0]?.total ?? 0;
-  }
-
-  sumByAccountAndMonth(accountId: string, yearMonth: string): number {
-    const rows = this.db.query<{ total: number }>(
-      `SELECT COALESCE(SUM(amount), 0) as total
-       FROM transactions
-       WHERE account_id = ? AND strftime('%Y-%m', date) = ?
-         AND type IN ('purchase','transfer_out')
-         AND (is_msi = 0 OR is_msi IS NULL)`,
-      [accountId, yearMonth]
     );
     return rows[0]?.total ?? 0;
   }

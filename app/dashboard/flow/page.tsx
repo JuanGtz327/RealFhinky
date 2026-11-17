@@ -3,8 +3,12 @@ import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { IncomeRepository } from "@/lib/repositories/income.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
+import { FlowAdjustmentsRepository } from "@/lib/repositories/flow-adjustments.repo";
 import { calcVariation, formatMXN } from "@/lib/utils/formatters";
+import { computeBillingPeriod } from "@/lib/utils/billing";
 import { computeMonthlyNomina, computeIncomeOverdueAlerts, computeExpectedPaymentDates, computeBlendedIncome } from "@/lib/domain/income";
+import { computeUntrackedDebt } from "@/lib/domain/flow-adjustment";
+import { computeEffectiveMonth } from "@/lib/domain/account-detail";
 import { IncomeOverdueBanner } from "@/components/forecast/IncomeOverdueBanner";
 import { format } from "date-fns";
 import { MonthlyFlowTable } from "@/components/dashboard/MonthlyFlowTable";
@@ -27,6 +31,12 @@ function FlowContent({ year }: { year: string }) {
   const creditAccounts = accRepo.findByType("credit");
   const debitAccounts  = accRepo.findByType("debit");
   const incomeSources  = incRepo.findAllSources();
+  const adjRepo        = new FlowAdjustmentsRepository(db);
+
+  const allAccounts = accRepo.findAll(false);
+  const onboardingMonth = allAccounts.length > 0
+    ? allAccounts.sort((a, b) => a.created_at.localeCompare(b.created_at))[0].created_at.substring(0, 7)
+    : undefined;
 
   const patrimonioActual = debitAccounts.reduce((s, a) => s + a.current_balance, 0);
 
@@ -63,7 +73,8 @@ function FlowContent({ year }: { year: string }) {
           mTransf += txs.filter((t) => t.type === "transfer_out").reduce((s, t) => s + t.amount, 0);
         }
         for (const acc of creditAccounts) {
-          mTarjetas += txRepo.sumByAccountAndMonth(acc.id, mStr);
+          const { periodStart, periodEnd } = computeBillingPeriod(mStr, acc.cut_date ?? null);
+          mTarjetas += txRepo.sumPurchasesByPeriod(acc.id, periodStart, periodEnd);
           mTarjetas += msiRepo.sumByAccountAndMonth(acc.id, mStr);
         }
         const mLoans = loanAccounts.reduce((s, acc) => s + txRepo.sumByAccountAndMonth(acc.id, mStr), 0);
@@ -128,12 +139,21 @@ function FlowContent({ year }: { year: string }) {
     }
 
     let tarjetas = 0;
-    const tarjetasBreakdown: { id: string; name: string; bank: string; purchases: number; msi: number }[] = [];
+    const tarjetasBreakdown: { id: string; name: string; bank: string; purchases: number; msi: number; untracked?: number; flow_adjustment?: number | null }[] = [];
     for (const acc of creditAccounts) {
-      const purchases = txRepo.sumByAccountAndMonth(acc.id, monthStr);
+      const { periodStart, periodEnd } = computeBillingPeriod(monthStr, acc.cut_date ?? null);
+      const purchases = txRepo.sumPurchasesByPeriod(acc.id, periodStart, periodEnd);
       const msi       = msiRepo.sumByAccountAndMonth(acc.id, monthStr);
-      tarjetas += purchases + msi;
-      tarjetasBreakdown.push({ id: acc.id, name: acc.name, bank: acc.bank ?? "", purchases, msi });
+      let untracked: number | undefined;
+      if (isCurrent && year === currentYear) {
+        const effectiveMonth = computeEffectiveMonth(acc.cut_date);
+        const pendingMsi = msiRepo.sumPendingFromMonth(acc.id, effectiveMonth);
+        const allTx = txRepo.findByAccount(acc.id);
+        untracked = computeUntrackedDebt(acc, allTx, pendingMsi);
+      }
+      const flowAdj = (isCurrent && year === currentYear) ? (acc.flow_adjustment ?? null) : null;
+      tarjetas += purchases + msi + (untracked ?? 0) + (flowAdj ?? 0);
+      tarjetasBreakdown.push({ id: acc.id, name: acc.name, bank: acc.bank ?? "", purchases, msi, untracked, flow_adjustment: flowAdj });
     }
 
     const TODAY_STR = format(new Date(), "yyyy-MM-dd");
@@ -161,16 +181,22 @@ function FlowContent({ year }: { year: string }) {
     }));
     const loansTotal = loans.reduce((s, l) => s + l.amount, 0);
 
+    const allAdj = adjRepo.findByMonth(monthStr);
+    const otrosGastos   = allAdj.filter((a) => a.type === "expense");
+    const otrosIngresos = allAdj.filter((a) => a.type === "income");
+    const otrosGastosTotal   = otrosGastos.reduce((s, a) => s + a.amount, 0);
+    const otrosIngresosTotal = otrosIngresos.reduce((s, a) => s + a.amount, 0);
+
     let ingresos_totales: number;
     let gastos_totales: number;
 
     if (isCurrent && year === currentYear) {
       // Only pending obligations: nomina remaining + no abonos/transfers (Fase 14)
-      ingresos_totales = nomina;
-      gastos_totales   = tarjetas + loansTotal;
+      ingresos_totales = nomina + otrosIngresosTotal;
+      gastos_totales   = tarjetas + loansTotal + otrosGastosTotal;
     } else {
-      ingresos_totales = nomina + abonos;
-      gastos_totales   = transferencias + tarjetas + loansTotal;
+      ingresos_totales = nomina + abonos + otrosIngresosTotal;
+      gastos_totales   = transferencias + tarjetas + loansTotal + otrosGastosTotal;
     }
 
     let capital_inicio: number;
@@ -190,6 +216,8 @@ function FlowContent({ year }: { year: string }) {
       variacion: calcVariation(capital_inicio, capital_fin),
       nomina_display, nomina_confirmed, nomina_remaining, is_projected, is_partial,
       tarjetasBreakdown, abonosDetail, transferenciasDetail, nominaSlots,
+      otrosGastos:   otrosGastos.map((a) => ({ id: a.id, description: a.description, amount: a.amount })),
+      otrosIngresos: otrosIngresos.map((a) => ({ id: a.id, description: a.description, amount: a.amount })),
     });
     prevCapitalFin = capital_fin;
   }
@@ -220,6 +248,7 @@ function FlowContent({ year }: { year: string }) {
         rows={flowRows as Parameters<typeof MonthlyFlowTable>[0]["rows"]}
         loanColumns={loanAccounts.map((a) => ({ id: a.id, name: a.name }))}
         currentMonth={CURRENT_MONTH}
+        onboardingMonth={onboardingMonth}
       />
     </>
   );

@@ -3,6 +3,8 @@
 import { FormDialog } from "@/components/ui/form-dialog";
 import { formatMXN, formatMonthLabel, formatDate } from "@/lib/utils/formatters";
 import { CheckCircle2, Circle } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { FlowRow } from "@/lib/domain/types";
 
 interface Props {
@@ -64,7 +66,7 @@ export function FlowCellBreakdownDialog({ open, onOpenChange, type, month, row, 
       className="sm:max-w-md"
     >
       {type === "gastos" ? (
-        <GastosContent row={row} />
+        <GastosContent row={row} isCurrent={isCurrent} />
       ) : (
         <IngresosContent row={row} isCurrent={isCurrent} isFuture={isFuture} />
       )}
@@ -72,42 +74,137 @@ export function FlowCellBreakdownDialog({ open, onOpenChange, type, month, row, 
   );
 }
 
-function GastosContent({ row }: { row: FlowRow }) {
+function GastosContent({ row, isCurrent }: { row: FlowRow; isCurrent: boolean }) {
+  const router = useRouter();
   const breakdown = row.tarjetasBreakdown ?? [];
-  const activeCards = breakdown.filter((c) => c.purchases + c.msi > 0);
-  const tarjetasTotal = breakdown.reduce((s, c) => s + c.purchases + c.msi, 0);
+  const activeCards = breakdown.filter((c) => c.purchases + c.msi + (c.untracked ?? 0) + (c.flow_adjustment ?? 0) > 0 || isCurrent);
+  const tarjetasTotal = breakdown.reduce((s, c) => s + c.purchases + c.msi + (c.untracked ?? 0) + (c.flow_adjustment ?? 0), 0);
   const loansTotal = row.loans.reduce((s, l) => s + l.amount, 0);
   const activeLoans = row.loans.filter((l) => l.amount > 0);
 
+  // Per-card manual adjustment state
+  const [adjustments, setAdjustments] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const c of breakdown) {
+      init[c.id] = c.flow_adjustment != null ? String(c.flow_adjustment) : "";
+    }
+    return init;
+  });
+  const [savingCard, setSavingCard] = useState<string | null>(null);
+
+  async function saveAdjustment(cardId: string) {
+    const raw = adjustments[cardId];
+    const value = raw === "" ? null : parseFloat(raw);
+    if (raw !== "" && isNaN(value!)) return;
+    setSavingCard(cardId);
+    await fetch(`/api/accounts/${cardId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ flow_adjustment: value }),
+    });
+    setSavingCard(null);
+    router.refresh();
+  }
+
+  // Otros gastos state
+  const [otrosGastos, setOtrosGastos] = useState(row.otrosGastos ?? []);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newDesc, setNewDesc] = useState("");
+  const [newAmount, setNewAmount] = useState("");
+  const [savingOtros, setSavingOtros] = useState(false);
+
+  const otrosTotal = otrosGastos.reduce((s, a) => s + a.amount, 0);
+
+  async function addOtroGasto() {
+    const amount = parseFloat(newAmount);
+    if (!newDesc.trim() || isNaN(amount) || amount <= 0) return;
+    setSavingOtros(true);
+    const res = await fetch("/api/flow-adjustments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month: row.month, description: newDesc.trim(), amount }),
+    });
+    if (res.ok) {
+      const { adjustment } = await res.json();
+      setOtrosGastos((p) => [...p, adjustment]);
+      setNewDesc("");
+      setNewAmount("");
+      setShowAddForm(false);
+      router.refresh();
+    }
+    setSavingOtros(false);
+  }
+
+  async function deleteOtroGasto(id: string) {
+    await fetch(`/api/flow-adjustments/${id}`, { method: "DELETE" });
+    setOtrosGastos((p) => p.filter((a) => a.id !== id));
+    router.refresh();
+  }
+
   return (
     <div className="space-y-1 pb-2">
+      {/* Tarjetas */}
       <SectionHeader label="Tarjetas de Crédito" total={tarjetasTotal} />
       <Divider />
       {activeCards.length === 0 ? (
         <EmptyNote text="Sin gastos en tarjetas este mes" />
       ) : (
-        activeCards.map((card) => (
-          <div key={card.id} className="pt-2 pb-1">
-            <p className="text-sm font-medium text-[var(--color-foreground)] mb-1">
-              {card.name}
-              <span className="text-xs text-[var(--color-muted)] ml-1.5">· {card.bank}</span>
-            </p>
-            {card.purchases > 0 && (
-              <InfoRow label="Compras directas" value={formatMXN(card.purchases)} />
-            )}
-            {card.msi > 0 && (
-              <InfoRow label="Cuotas MSI" value={formatMXN(card.msi)} />
-            )}
-            <div className="flex items-center justify-between py-1.5">
-              <span className="text-xs text-[var(--color-muted)]">Subtotal</span>
-              <span className="text-sm font-semibold font-mono text-[var(--color-foreground)]">
-                {formatMXN(card.purchases + card.msi)}
-              </span>
+        activeCards.map((card) => {
+          const adj = parseFloat(adjustments[card.id] || "0") || 0;
+          const cardTotal = card.purchases + card.msi + (card.untracked ?? 0) + adj;
+          return (
+            <div key={card.id} className="pt-2 pb-1">
+              <p className="text-sm font-medium text-[var(--color-foreground)] mb-1">
+                {card.name}
+                <span className="text-xs text-[var(--color-muted)] ml-1.5">· {card.bank}</span>
+              </p>
+              {card.purchases > 0 && (
+                <InfoRow label="Compras directas" value={formatMXN(card.purchases)} />
+              )}
+              {card.msi > 0 && (
+                <InfoRow label="Cuotas MSI" value={formatMXN(card.msi)} />
+              )}
+              {(card.untracked ?? 0) > 0 && (
+                <InfoRow
+                  label="Deuda pre-onboarding (auto)"
+                  value={formatMXN(card.untracked!)}
+                  valueClass="text-[var(--color-warning)]"
+                />
+              )}
+              {isCurrent && (
+                <div className="flex items-center justify-between py-1.5 border-b border-[var(--color-border)]/50">
+                  <span className="text-sm text-[var(--color-foreground)]">Ajuste manual</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={adjustments[card.id] ?? ""}
+                      onChange={(e) => setAdjustments((p) => ({ ...p, [card.id]: e.target.value }))}
+                      onBlur={() => saveAdjustment(card.id)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveAdjustment(card.id); }}
+                      disabled={savingCard === card.id}
+                      className="w-28 h-7 text-right text-sm font-mono border border-[var(--color-border)] rounded px-2 bg-[var(--color-bg)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent)] disabled:opacity-50"
+                    />
+                    {savingCard === card.id && (
+                      <span className="text-[10px] text-[var(--color-muted)]">guardando…</span>
+                    )}
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-xs text-[var(--color-muted)]">Subtotal</span>
+                <span className="text-sm font-semibold font-mono text-[var(--color-foreground)]">
+                  {formatMXN(cardTotal)}
+                </span>
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
 
+      {/* Préstamos */}
       <SectionHeader label="Préstamos" total={loansTotal} />
       <Divider />
       {activeLoans.length === 0 ? (
@@ -117,15 +214,115 @@ function GastosContent({ row }: { row: FlowRow }) {
           <InfoRow key={loan.account_id} label={loan.name} value={formatMXN(loan.amount)} />
         ))
       )}
+
+      {/* Otros gastos */}
+      <SectionHeader label="Otros Gastos" total={otrosTotal} />
+      <Divider />
+      {otrosGastos.length === 0 && !showAddForm && (
+        <EmptyNote text="Sin gastos adicionales registrados" />
+      )}
+      {otrosGastos.map((a) => (
+        <div key={a.id} className="flex items-center justify-between py-1.5 border-b border-[var(--color-border)]/50">
+          <span className="text-sm text-[var(--color-foreground)]">{a.description}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-mono text-[var(--color-foreground)]">{formatMXN(a.amount)}</span>
+            <button
+              onClick={() => deleteOtroGasto(a.id)}
+              className="text-[var(--color-muted)] hover:text-[var(--color-danger)] transition-colors text-xs leading-none"
+              aria-label="Eliminar"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      ))}
+      {showAddForm && (
+        <div className="flex items-center gap-2 py-2">
+          <input
+            type="text"
+            placeholder="Descripción"
+            value={newDesc}
+            onChange={(e) => setNewDesc(e.target.value)}
+            className="flex-1 h-7 text-sm border border-[var(--color-border)] rounded px-2 bg-[var(--color-bg)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent)]"
+            autoFocus
+          />
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            value={newAmount}
+            onChange={(e) => setNewAmount(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") addOtroGasto(); if (e.key === "Escape") setShowAddForm(false); }}
+            className="w-24 h-7 text-right text-sm font-mono border border-[var(--color-border)] rounded px-2 bg-[var(--color-bg)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent)]"
+          />
+          <button
+            onClick={addOtroGasto}
+            disabled={savingOtros}
+            className="h-7 px-2 text-xs rounded bg-[var(--color-accent)] text-white disabled:opacity-50"
+          >
+            ✓
+          </button>
+          <button
+            onClick={() => { setShowAddForm(false); setNewDesc(""); setNewAmount(""); }}
+            className="h-7 px-2 text-xs rounded border border-[var(--color-border)] text-[var(--color-muted)]"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+      {!showAddForm && (
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="mt-1 text-xs text-[var(--color-accent)] hover:underline"
+        >
+          + Agregar gasto
+        </button>
+      )}
     </div>
   );
 }
 
 function IngresosContent({ row, isCurrent, isFuture }: { row: FlowRow; isCurrent: boolean; isFuture: boolean }) {
+  const router = useRouter();
   const nominaSlots = row.nominaSlots ?? [];
-  const nominaTotal = row.ingresos_totales;
   const abonos = row.abonosDetail ?? [];
   const transferencias = row.transferenciasDetail ?? [];
+
+  const [otrosIngresos, setOtrosIngresos] = useState(row.otrosIngresos ?? []);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newDesc, setNewDesc] = useState("");
+  const [newAmount, setNewAmount] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const otrosIngresosTotal = otrosIngresos.reduce((s, a) => s + a.amount, 0);
+  const nominaTotal = row.ingresos_totales - otrosIngresosTotal + otrosIngresos.reduce((s, a) => s + a.amount, 0);
+
+  async function addOtroIngreso() {
+    const amount = parseFloat(newAmount);
+    if (!newDesc.trim() || isNaN(amount) || amount <= 0) return;
+    setSaving(true);
+    const res = await fetch("/api/flow-adjustments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month: row.month, type: "income", description: newDesc.trim(), amount }),
+    });
+    if (res.ok) {
+      const { adjustment } = await res.json();
+      setOtrosIngresos((p) => [...p, adjustment]);
+      setNewDesc("");
+      setNewAmount("");
+      setShowAddForm(false);
+      router.refresh();
+    }
+    setSaving(false);
+  }
+
+  async function deleteOtroIngreso(id: string) {
+    await fetch(`/api/flow-adjustments/${id}`, { method: "DELETE" });
+    setOtrosIngresos((p) => p.filter((a) => a.id !== id));
+    router.refresh();
+  }
 
   return (
     <div className="space-y-1 pb-2">
@@ -261,6 +458,73 @@ function IngresosContent({ row, isCurrent, isFuture }: { row: FlowRow; isCurrent
           )}
         </div>
       )}
+
+      {/* Otros ingresos */}
+      <div className="pt-2">
+        <SectionHeader label="Otros Ingresos" total={otrosIngresosTotal} />
+        <Divider />
+        {otrosIngresos.length === 0 && !showAddForm && (
+          <EmptyNote text="Sin ingresos adicionales registrados" />
+        )}
+        {otrosIngresos.map((a) => (
+          <div key={a.id} className="flex items-center justify-between py-1.5 border-b border-[var(--color-border)]/50">
+            <span className="text-sm text-[var(--color-foreground)]">{a.description}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-mono text-[var(--color-success)]">{formatMXN(a.amount)}</span>
+              <button
+                onClick={() => deleteOtroIngreso(a.id)}
+                className="text-[var(--color-muted)] hover:text-[var(--color-danger)] transition-colors text-xs leading-none"
+                aria-label="Eliminar"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ))}
+        {showAddForm && (
+          <div className="flex items-center gap-2 py-2">
+            <input
+              type="text"
+              placeholder="Descripción"
+              value={newDesc}
+              onChange={(e) => setNewDesc(e.target.value)}
+              className="flex-1 h-7 text-sm border border-[var(--color-border)] rounded px-2 bg-[var(--color-bg)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent)]"
+              autoFocus
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={newAmount}
+              onChange={(e) => setNewAmount(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addOtroIngreso(); if (e.key === "Escape") setShowAddForm(false); }}
+              className="w-24 h-7 text-right text-sm font-mono border border-[var(--color-border)] rounded px-2 bg-[var(--color-bg)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent)]"
+            />
+            <button
+              onClick={addOtroIngreso}
+              disabled={saving}
+              className="h-7 px-2 text-xs rounded bg-[var(--color-success)] text-white disabled:opacity-50"
+            >
+              ✓
+            </button>
+            <button
+              onClick={() => { setShowAddForm(false); setNewDesc(""); setNewAmount(""); }}
+              className="h-7 px-2 text-xs rounded border border-[var(--color-border)] text-[var(--color-muted)]"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        {!showAddForm && (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="mt-1 text-xs text-[var(--color-success)] hover:underline"
+          >
+            + Agregar ingreso
+          </button>
+        )}
+      </div>
     </div>
   );
 }
