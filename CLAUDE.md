@@ -392,11 +392,11 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 - [x] 11.1.19 Verificar: `npx tsc --noEmit` + `npm test` pasan
 
 #### 11.2 — Herramientas de calidad (commit)
-- [ ] 11.2.1 Migrar Jest → Vitest (instalar vitest, crear vitest.config.ts, eliminar jest/ts-jest)
-- [ ] 11.2.2 Actualizar imports en tests existentes para Vitest si es necesario
-- [ ] 11.2.3 Extender `.eslintrc.json` con reglas prácticas
-- [ ] 11.2.4 Agregar scripts `typecheck` y `check` (tsc + lint + vitest run) en `package.json`
-- [ ] 11.2.5 Verificar: `npm run check` pasa limpio
+- [x] 11.2.1 Migrar Jest → Vitest (instalar vitest, crear vitest.config.ts, eliminar jest/ts-jest)
+- [x] 11.2.2 Actualizar imports en tests existentes para Vitest si es necesario
+- [x] 11.2.3 Extender `.eslintrc.json` con reglas prácticas
+- [x] 11.2.4 Agregar scripts `typecheck` y `check` (tsc + lint + vitest run) en `package.json`
+- [x] 11.2.5 Verificar: `npm run check` pasa limpio
 
 #### 11.3 — Tests de funciones de dominio (commit)
 - [ ] 11.3.1 Crear `__tests__/fixtures/dataset.ts` con datos representativos fijos
