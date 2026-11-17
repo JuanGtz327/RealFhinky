@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { format, addMonths } from "date-fns";
 import { computeBillingPeriod } from "@/lib/utils/billing";
 import { getCreditUtilizationAlert, getCutDateAlert, getPaymentDateAlert, getAnnualFeeAlert } from "@/lib/utils/alerts";
+import { computeEffectiveMonth, computeBalanceDiscrepancy, computeCreditUtilization } from "@/lib/domain";
 import { getMsiProgress } from "@/lib/utils/msi";
 import { formatMXN } from "@/lib/utils/formatters";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -47,10 +48,7 @@ export default function AccountDetailPage({
 
   // If today is past the cut date, that billing cycle has already closed.
   // Use the NEXT month as the effective reference so paid/remaining counts correctly.
-  const today = new Date();
-  const effectiveMonth = (account.cut_date && today.getDate() > account.cut_date)
-    ? format(addMonths(today, 1), "yyyy-MM")
-    : REAL_MONTH;
+  const effectiveMonth = computeEffectiveMonth(account.cut_date);
 
   // ── Tabla mes a mes ───────────────────────────────────────
   const monthlyRows = MONTHS.map((m) => {
@@ -58,7 +56,14 @@ export default function AccountDetailPage({
     const isFuture  = month > effectiveMonth;
     const isCurrent = month === effectiveMonth;
 
-    const real = txRepo.sumByAccountAndMonth(account.id, month);
+    let real: number;
+    if (isCredit) {
+      const { periodStart, periodEnd } = computeBillingPeriod(month, account.cut_date ?? null);
+      real = txRepo.sumPurchasesByPeriod(account.id, periodStart, periodEnd)
+           - txRepo.sumCreditsByPeriod(account.id, periodStart, periodEnd);
+    } else {
+      real = txRepo.sumByAccountAndMonth(account.id, month);
+    }
     const msi  = msiRepo.sumByAccountAndMonth(account.id, month);
     const total = isCredit ? (real + msi) : real;
 
@@ -159,23 +164,16 @@ export default function AccountDetailPage({
   const recentTx = txRepo.findByAccount(account.id, 20);
 
   // ── Discrepancia saldo real vs Finkhy (solo crédito) ────
-  // MSI: usar cuotas pendientes (no el total original — evita contar meses ya pagados)
-  const finkhyBalance = isCredit ? (() => {
-    const pendingMsi  = activeMsi.reduce((s, item) => s + item.pendingTotal, 0);
-    const directDebt  = allTx.reduce((s, tx) => {
-      if (tx.type === "purchase"    && !tx.is_msi) return s + tx.amount;
-      if (tx.type === "transfer_in")               return s - tx.amount;
-      return s;
-    }, 0);
-    return directDebt + pendingMsi + (account.opening_balance_carryover ?? 0);
-  })() : null;
-  const balanceDiff = finkhyBalance !== null
-    ? account.current_balance - finkhyBalance
+  const discrepancy = isCredit
+    ? computeBalanceDiscrepancy(account, totalPendingMsi, allTx)
     : null;
+  const finkhyBalance = discrepancy?.finkhyBalance ?? null;
+  const balanceDiff   = discrepancy?.diff ?? null;
 
   // ── KPIs según tipo ──────────────────────────────────────
   const utilization  = account.credit_limit && account.credit_limit > 0
-    ? (account.current_balance / account.credit_limit) * 100 : null;
+    ? computeCreditUtilization(account.current_balance, account.credit_limit)
+    : null;
   const alertLevel   = utilization !== null ? getCreditUtilizationAlert(utilization) : "ok";
   const cutAlert     = account.cut_date         ? getCutDateAlert(account.cut_date)              : null;
   const payAlert     = account.payment_due_date ? getPaymentDateAlert(account.payment_due_date)  : null;

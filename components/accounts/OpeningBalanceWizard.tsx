@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { FormField } from "@/components/ui/form-field";
 import { useToast } from "@/components/kokonutui/promise-toast";
 import { formatMXN } from "@/lib/utils/formatters";
+import { msiElapsed, msiRemainingAmount, roundCents } from "@/lib/utils/msi";
 
 interface MsiPlan {
   merchant:   string;
@@ -26,60 +27,6 @@ interface Props {
 
 const MSI_OPTIONS = [3, 6, 9, 12, 18, 24];
 
-/**
- * Calcula cuántos ciclos de facturación han cerrado desde el inicio del MSI.
- * Usa cut_date para:
- *   1. Determinar el mes de inicio de facturación real (si compra > corte → mes siguiente)
- *   2. Determinar si el ciclo del mes actual ya cerró (hoy > corte → +1)
- */
-function msiElapsed(start_date: string, cutDay?: number): number {
-  const purchaseYear  = parseInt(start_date.substring(0, 4), 10);
-  const purchaseMonth = parseInt(start_date.substring(5, 7), 10); // 1-indexed
-  const purchaseDay   = parseInt(start_date.substring(8, 10), 10);
-
-  // Billing start month (0-indexed)
-  let billingYear: number;
-  let billingMonth: number;
-  if (cutDay && purchaseDay > cutDay) {
-    billingMonth = purchaseMonth === 12 ? 0 : purchaseMonth; // 0-indexed next month
-    billingYear  = purchaseMonth === 12 ? purchaseYear + 1 : purchaseYear;
-  } else {
-    billingYear  = purchaseYear;
-    billingMonth = purchaseMonth - 1; // 0-indexed same month
-  }
-
-  const now = new Date();
-  const currentYear  = now.getFullYear();
-  const currentMonth = now.getMonth(); // 0-indexed
-  const currentDay   = now.getDate();
-
-  // If today is past the cut day, the current month's statement has already closed
-  const cycleClosedThisMonth = cutDay && currentDay > cutDay ? 1 : 0;
-
-  return Math.max(0,
-    (currentYear - billingYear) * 12 + (currentMonth - billingMonth) + cycleClosedThisMonth
-  );
-}
-
-function msiRemainingAmount(plan: MsiPlan, cutDay?: number): number {
-  const amount = Number(plan.amount);
-  if (!amount || !plan.msi_months || !plan.start_date) return 0;
-
-  const elapsed = msiElapsed(plan.start_date, cutDay);
-  const remaining = Math.max(0, plan.msi_months - elapsed);
-  if (remaining === 0) return 0;
-
-  const r2 = (n: number) => Math.round(n * 100) / 100;
-  const base = r2(amount / plan.msi_months);
-  const last = r2(amount - base * (plan.msi_months - 1));
-
-  let total = 0;
-  for (let i = elapsed; i < plan.msi_months; i++) {
-    total += i === plan.msi_months - 1 ? last : base;
-  }
-  return r2(total);
-}
-
 export function OpeningBalanceWizard({ accountId, accountName, currentBalance, cutDay }: Props) {
   const router = useRouter();
   const { toast, update } = useToast();
@@ -90,7 +37,7 @@ export function OpeningBalanceWizard({ accountId, accountName, currentBalance, c
   const [saving, setSaving]   = useState(false);
   const [customMsiSet, setCustomMsiSet] = useState<Set<number>>(new Set());
 
-  const totalMsi      = plans.reduce((s, p) => s + msiRemainingAmount(p, cutDay), 0);
+  const totalMsi      = plans.reduce((s, p) => s + msiRemainingAmount(Number(p.amount), p.msi_months, p.start_date, cutDay), 0);
   const totalAssigned = (Number(purchases) || 0) + (Number(carryover) || 0) + totalMsi;
   const diff          = currentBalance - totalAssigned;
   const diffOk        = Math.abs(diff) < 0.01;
@@ -296,8 +243,8 @@ export function OpeningBalanceWizard({ accountId, accountName, currentBalance, c
                 </div>
 
                 {plan.amount && plan.msi_months && (() => {
-                  const remaining = msiRemainingAmount(plan);
-                  const base = Math.round(Number(plan.amount) / plan.msi_months * 100) / 100;
+                  const remaining = msiRemainingAmount(Number(plan.amount), plan.msi_months, plan.start_date);
+                  const base = roundCents(Number(plan.amount) / plan.msi_months);
                   const remainingMonths = Math.max(0, plan.msi_months - msiElapsed(plan.start_date, cutDay));
                   return (
                     <p className="text-xs text-[var(--color-accent)]">

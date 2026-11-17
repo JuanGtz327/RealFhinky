@@ -2,6 +2,7 @@ import { getDb } from "@/lib/db";
 import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { getCreditUtilizationAlert } from "@/lib/utils/alerts";
 import { formatMXN } from "@/lib/utils/formatters";
+import { computeAccountKpis, computeCreditUtilization } from "@/lib/domain";
 import Link from "next/link";
 import { CreditCard, Landmark, TrendingUp, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -17,7 +18,7 @@ function AccountCard({
   id: string; name: string; bank: string; last4?: string;
   balance: number; limit?: number; type: string; yieldRate?: number;
 }) {
-  const utilization = limit && limit > 0 ? (balance / limit) * 100 : null;
+  const utilization = limit && limit > 0 ? computeCreditUtilization(balance, limit) : null;
   const alertLevel: AlertLevel = utilization !== null ? getCreditUtilizationAlert(utilization) : "ok";
 
   return (
@@ -77,9 +78,7 @@ export default function AccountsPage() {
   const debit      = all.filter((a) => a.type === "debit");
   const investment = all.filter((a) => a.type === "investment");
 
-  const totalCapital   = [...debit, ...investment].reduce((s, a) => s + a.current_balance, 0);
-  const totalDeuda     = [...credit, ...loans].reduce((s, a) => s + a.current_balance, 0);
-  const totalDisponible = [...credit, ...loans].reduce((s, a) => s + ((a.credit_limit ?? 0) - a.current_balance), 0);
+  const { totalCapital, totalDeuda, totalDisponible } = computeAccountKpis(all);
 
   return (
     <div className="space-y-8">

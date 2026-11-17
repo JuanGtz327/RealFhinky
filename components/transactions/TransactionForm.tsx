@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
 import { FormActions } from "@/components/ui/form-actions";
 import { z } from "zod";
+import { roundCents } from "@/lib/utils/msi";
 
 const schema = z.object({
   account_id:  z.string().min(1, "Selecciona una cuenta"),
@@ -93,8 +94,8 @@ export function TransactionForm({ accounts, initial, mode = "create", onSuccess 
 
   const msiPreview = isMsi && form.amount && form.msi_months
     ? (() => {
-        const base = Math.round(form.amount / form.msi_months * 100) / 100;
-        const residual = Math.round((form.amount - base * form.msi_months) * 100) / 100;
+        const base = roundCents(form.amount / form.msi_months);
+        const residual = roundCents(form.amount - base * form.msi_months);
         return { base, residual, last: base + residual };
       })()
     : null;

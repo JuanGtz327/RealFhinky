@@ -3,8 +3,8 @@ import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { IncomeRepository } from "@/lib/repositories/income.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
-import { getCreditUtilizationAlert } from "@/lib/utils/alerts";
-import { calcVariation, formatMXN } from "@/lib/utils/formatters";
+import { formatMXN } from "@/lib/utils/formatters";
+import { computeFlowRows, computeDebitSummary, computeDebtSummary } from "@/lib/domain";
 import { format } from "date-fns";
 
 import { DebitTable } from "@/components/dashboard/DebitTable";
@@ -28,55 +28,11 @@ export default function DashboardPage() {
   const incRepo = new IncomeRepository(db);
   const msiRepo = new MsiRepository(db);
 
-  // ── Datos para Tabla 1: Flujo mensual ───────────────────────
-  const loanAccounts   = accRepo.findByType("loan");
+  // ── Tabla 1: Flujo mensual ───────────────────────────────────
+  const { rows: flowRows } = computeFlowRows(CURRENT_YEAR, { accRepo, txRepo, incRepo, msiRepo });
+
+  // ── Tabla 2: Desglose por tarjeta ────────────────────────────
   const creditAccounts = accRepo.findByType("credit");
-  const debitAccounts  = accRepo.findByType("debit");
-
-  const flowRows: Array<{
-    month: string; capital_inicio: number; nomina: number; abonos: number;
-    ingresos_totales: number; transferencias: number; tarjetas: number;
-    loans: { account_id: string; name: string; amount: number }[];
-    gastos_totales: number; capital_fin: number; variacion: number | null;
-  }> = [];  let prevCapitalFin = 0;
-
-  for (let m = 1; m <= 12; m++) {
-    const monthStr = `${CURRENT_YEAR}-${String(m).padStart(2, "0")}`;
-    const allIncome = incRepo.findEntriesByMonth(monthStr);
-    const nomina = allIncome.reduce((s, e) => s + e.amount, 0);
-
-    let abonos = 0, transferencias = 0;
-    for (const acc of debitAccounts) {
-      const txs = txRepo.findByAccount(acc.id).filter((t) => t.date.startsWith(monthStr));
-      abonos        += txs.filter((t) => t.type === "transfer_in").reduce((s, t) => s + t.amount, 0);
-      transferencias += txs.filter((t) => t.type === "transfer_out").reduce((s, t) => s + t.amount, 0);
-    }
-
-    let tarjetas = 0;
-    for (const acc of creditAccounts) {
-      tarjetas += txRepo.sumByAccountAndMonth(acc.id, monthStr);
-      tarjetas += msiRepo.sumByAccountAndMonth(acc.id, monthStr);
-    }
-
-    const loans = loanAccounts.map((acc) => ({
-      account_id: acc.id, name: acc.name,
-      amount: txRepo.sumByAccountAndMonth(acc.id, monthStr),
-    }));
-    const loansTotal      = loans.reduce((s, l) => s + l.amount, 0);
-    const ingresos_totales = nomina + abonos;
-    const gastos_totales   = transferencias + tarjetas + loansTotal;
-    const capital_inicio   = prevCapitalFin;
-    const capital_fin      = capital_inicio + ingresos_totales - gastos_totales;
-
-    flowRows.push({
-      month: monthStr, capital_inicio, nomina, abonos, ingresos_totales,
-      transferencias, tarjetas, loans, gastos_totales, capital_fin,
-      variacion: calcVariation(capital_inicio, capital_fin),
-    });
-    prevCapitalFin = capital_fin;
-  }
-
-  // ── Datos para Tabla 2: Desglose por tarjeta ────────────────
   const years = [CURRENT_YEAR, String(Number(CURRENT_YEAR) - 1)];
   const matrixByYear: Record<string, Record<string, Record<string, number>>> = {};
 
@@ -95,33 +51,13 @@ export default function DashboardPage() {
   }
 
   // ── Widget: débito ───────────────────────────────────────────
+  const debitAccounts  = accRepo.findByType("debit");
   const investAccounts = accRepo.findByType("investment");
-  const allDebit = [...debitAccounts, ...investAccounts].map((acc) => ({
-    id: acc.id, name: acc.name, bank: acc.bank,
-    capital: acc.current_balance,
-    yield_rate: acc.yield_rate ?? 0,
-    annual_projection: acc.current_balance * ((acc.yield_rate ?? 0) / 100),
-    daily_projection: (acc.current_balance * ((acc.yield_rate ?? 0) / 100)) / 365,
-  }));
-  const debitTotals = {
-    capital: allDebit.reduce((s, a) => s + a.capital, 0),
-    annual_projection: allDebit.reduce((s, a) => s + a.annual_projection, 0),
-    daily_projection: allDebit.reduce((s, a) => s + a.daily_projection, 0),
-  };
+  const loanAccounts   = accRepo.findByType("loan");
+  const { accounts: allDebit, totals: debitTotals } = computeDebitSummary([...debitAccounts, ...investAccounts]);
 
   // ── Widget: deuda ────────────────────────────────────────────
-  const allCredit = [...creditAccounts, ...loanAccounts].map((acc) => {
-    const limit       = acc.credit_limit ?? 0;
-    const balance     = acc.current_balance;
-    const utilization = limit > 0 ? (balance / limit) * 100 : 0;
-    return {
-      id: acc.id, name: acc.name, bank: acc.bank,
-      credit_limit: limit, current_balance: balance,
-      available: limit - balance,
-      utilization_pct: utilization,
-      utilization_level: getCreditUtilizationAlert(utilization),
-    };
-  });
+  const allCredit = computeDebtSummary([...creditAccounts, ...loanAccounts]);
 
   // ── KPIs rápidos ─────────────────────────────────────────────
   const currentFlowRow  = flowRows.find((r) => r.month === CURRENT_MONTH);

@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
+import { computeBreakdownMatrix } from "@/lib/domain";
 import { format } from "date-fns";
 
 export async function GET(req: NextRequest) {
@@ -11,33 +12,13 @@ export async function GET(req: NextRequest) {
     const year = searchParams.get("year") ?? new Date().getFullYear().toString();
     const db = getDb();
     const accRepo = new AccountsRepository(db);
-    const txRepo = new TransactionsRepository(db);
+    const txRepo  = new TransactionsRepository(db);
     const msiRepo = new MsiRepository(db);
 
-    const creditAccounts = accRepo.findByType("credit");
     const currentMonth = format(new Date(), "yyyy-MM");
+    const { matrix, accounts } = computeBreakdownMatrix(year, { accRepo, txRepo, msiRepo });
 
-    // Construir matriz año × mes × tarjeta
-    const matrix: Record<string, Record<string, number>> = {};
-
-    for (let m = 1; m <= 12; m++) {
-      const monthStr = `${year}-${String(m).padStart(2, "0")}`;
-      matrix[monthStr] = {};
-
-      for (const acc of creditAccounts) {
-        // Siempre: compras directas (non-MSI) + cuotas MSI del mes
-        const direct = txRepo.sumByAccountAndMonth(acc.id, monthStr);
-        const msi    = msiRepo.sumByAccountAndMonth(acc.id, monthStr);
-        matrix[monthStr][acc.id] = direct + msi;
-      }
-    }
-
-    return NextResponse.json({
-      year,
-      currentMonth,
-      accounts: creditAccounts.map((a) => ({ id: a.id, name: a.name, bank: a.bank })),
-      matrix,
-    });
+    return NextResponse.json({ year, currentMonth, accounts, matrix });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Error";
     return NextResponse.json({ error: msg }, { status: 500 });

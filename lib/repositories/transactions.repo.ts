@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { IDatabase } from "@/lib/db/adapter";
 import { Transaction, TransactionType } from "@/lib/types";
 import { expandMsi, billingStartDate } from "@/lib/utils/msi";
+import { balanceDelta as computeDelta } from "@/lib/domain/balance";
 
 export interface CreateTransactionInput {
   account_id: string;
@@ -52,13 +53,8 @@ export class TransactionsRepository {
   }
 
   /** Calcula el delta que una transacción aplica al saldo de la cuenta. */
-  private balanceDelta(type: TransactionType, amount: number, accountType?: string): number {
-    // Para crédito: compra = sube deuda (+), pago recibido (transfer_in) = baja deuda (-)
-    if (accountType === "credit" || accountType === "loan") {
-      return type === "transfer_in" ? -amount : amount;
-    }
-    // Para débito/inversión: depósito (+), retiro/gasto (-)
-    return (type === "transfer_in" || type === "income") ? amount : -amount;
+  balanceDelta(type: TransactionType, amount: number, accountType?: string): number {
+    return computeDelta(type, amount, accountType);
   }
 
   create(input: CreateTransactionInput): Transaction {
@@ -78,11 +74,13 @@ export class TransactionsRepository {
 
     let monthlyAmount: number | null = null;
     let residual: number | null = null;
+    let msiInstallments: ReturnType<typeof expandMsi>["installments"] | null = null;
 
     if (isMsi && input.msi_months) {
-      const { monthlyAmount: ma, residual: r } = expandMsi(input.amount, input.msi_months, msiStartDate);
+      const { monthlyAmount: ma, residual: r, installments } = expandMsi(input.amount, input.msi_months, msiStartDate);
       monthlyAmount = ma;
       residual = r;
+      msiInstallments = installments;
     }
 
     this.db.transaction(() => {
@@ -104,8 +102,8 @@ export class TransactionsRepository {
         ]
       );
 
-      if (isMsi && input.msi_months) {
-        const installments = expandMsi(input.amount, input.msi_months, msiStartDate).installments;
+      if (isMsi && msiInstallments) {
+        const installments = msiInstallments;
         for (const inst of installments) {
           this.db.execute(
             `INSERT INTO msi_installments (id, transaction_id, account_id, month, amount, is_last)
@@ -193,6 +191,7 @@ export class TransactionsRepository {
     );
     return rows[0]?.total ?? 0;
   }
+
 
   private deserialize(row: Transaction): Transaction {
     return { ...row, is_msi: Boolean(row.is_msi) };
