@@ -4,7 +4,7 @@ import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { IncomeRepository } from "@/lib/repositories/income.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
 import { calcVariation, formatMXN } from "@/lib/utils/formatters";
-import { computeMonthlyNomina, computeIncomeOverdueAlerts } from "@/lib/domain/income";
+import { computeMonthlyNomina, computeIncomeOverdueAlerts, computeExpectedPaymentDates, computeBlendedIncome } from "@/lib/domain/income";
 import { IncomeOverdueBanner } from "@/components/forecast/IncomeOverdueBanner";
 import { format } from "date-fns";
 import { MonthlyFlowTable } from "@/components/dashboard/MonthlyFlowTable";
@@ -34,7 +34,44 @@ function FlowContent({ year }: { year: string }) {
   const overdueAlerts = computeIncomeOverdueAlerts(incomeSources, currentMonthEntries, CURRENT_MONTH, format(new Date(), "yyyy-MM-dd"));
 
   const currentYear = format(new Date(), "yyyy");
+
+  // Seed capital: for future years, project forward from current state to get
+  // the capital_fin of December of (year - 1) as starting point for January.
   let prevCapitalFin: number | null = null;
+
+  if (year > currentYear) {
+    const [cyNum, cmNum] = CURRENT_MONTH.split("-").map(Number);
+    const targetYearNum = parseInt(year);
+    let seedCapital = patrimonioActual;
+
+    for (let y = cyNum; y < targetYearNum; y++) {
+      const startM = y === cyNum ? cmNum + 1 : 1;
+      for (let m = startM; m <= 12; m++) {
+        const mStr = `${y}-${String(m).padStart(2, "0")}`;
+        const mEntries = incRepo.findEntriesByMonth(mStr);
+        const mBySource = new Map<string, typeof mEntries>();
+        for (const e of mEntries) {
+          const arr = mBySource.get(e.income_source_id) ?? [];
+          arr.push(e);
+          mBySource.set(e.income_source_id, arr);
+        }
+        const nResult = computeMonthlyNomina(incomeSources, mBySource, "blended");
+        let mAbonos = 0, mTransf = 0, mTarjetas = 0;
+        for (const acc of debitAccounts) {
+          const txs = txRepo.findByAccount(acc.id).filter((t) => t.date.startsWith(mStr));
+          mAbonos += txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+          mTransf += txs.filter((t) => t.type === "transfer_out").reduce((s, t) => s + t.amount, 0);
+        }
+        for (const acc of creditAccounts) {
+          mTarjetas += txRepo.sumByAccountAndMonth(acc.id, mStr);
+          mTarjetas += msiRepo.sumByAccountAndMonth(acc.id, mStr);
+        }
+        const mLoans = loanAccounts.reduce((s, acc) => s + txRepo.sumByAccountAndMonth(acc.id, mStr), 0);
+        seedCapital = seedCapital + nResult.blended + mAbonos - mTransf - mTarjetas - mLoans;
+      }
+    }
+    prevCapitalFin = seedCapital;
+  }
 
   const flowRows = [];
 
@@ -66,26 +103,57 @@ function FlowContent({ year }: { year: string }) {
       nomina_confirmed  = displayResult.confirmedCount;
       nomina_remaining  = remainingResult.remaining;
       is_partial        = displayResult.confirmedCount > 0 && displayResult.confirmedCount < displayResult.expectedCount;
-    } else if (isFuture && year === currentYear) {
+    } else if (isFuture) {
       const blendedResult = computeMonthlyNomina(incomeSources, entriesBySource, "blended");
       nomina     = blendedResult.blended;
       is_partial = blendedResult.confirmedCount > 0 && blendedResult.confirmedCount < blendedResult.expectedCount;
     } else {
+      // Past months: use real confirmed entries only
       nomina = monthEntries.reduce((s, e) => s + e.amount, 0);
     }
 
     let abonos = 0, transferencias = 0;
+    const abonosDetail: { accountName: string; date: string; merchant: string; amount: number }[] = [];
+    const transferenciasDetail: { accountName: string; date: string; merchant: string; amount: number }[] = [];
     for (const acc of debitAccounts) {
       const txs = txRepo.findByAccount(acc.id).filter((t) => t.date.startsWith(monthStr));
-      abonos         += txs.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-      transferencias += txs.filter((t) => t.type === "transfer_out").reduce((s, t) => s + t.amount, 0);
+      for (const t of txs.filter((t) => t.type === "income")) {
+        abonos += t.amount;
+        abonosDetail.push({ accountName: acc.name, date: t.date, merchant: t.merchant ?? t.description ?? "", amount: t.amount });
+      }
+      for (const t of txs.filter((t) => t.type === "transfer_out")) {
+        transferencias += t.amount;
+        transferenciasDetail.push({ accountName: acc.name, date: t.date, merchant: t.merchant ?? t.description ?? "", amount: t.amount });
+      }
     }
 
     let tarjetas = 0;
+    const tarjetasBreakdown: { id: string; name: string; bank: string; purchases: number; msi: number }[] = [];
     for (const acc of creditAccounts) {
-      tarjetas += txRepo.sumByAccountAndMonth(acc.id, monthStr);
-      tarjetas += msiRepo.sumByAccountAndMonth(acc.id, monthStr);
+      const purchases = txRepo.sumByAccountAndMonth(acc.id, monthStr);
+      const msi       = msiRepo.sumByAccountAndMonth(acc.id, monthStr);
+      tarjetas += purchases + msi;
+      tarjetasBreakdown.push({ id: acc.id, name: acc.name, bank: acc.bank ?? "", purchases, msi });
     }
+
+    const TODAY_STR = format(new Date(), "yyyy-MM-dd");
+    const nominaSlots = incomeSources.map((src) => {
+      const entries = entriesBySource.get(src.id) ?? [];
+      const { blendedTotal } = computeBlendedIncome(src, entries);
+      const slots = computeExpectedPaymentDates(src, monthStr, TODAY_STR, entries);
+      return {
+        sourceId: src.id,
+        sourceName: src.name,
+        frequency: src.frequency,
+        blendedTotal,
+        slots: slots.map((s) => ({
+          date: s.date,
+          isPast: s.isPast,
+          confirmed: s.entry !== null,
+          amount: s.entry?.amount ?? src.base_amount,
+        })),
+      };
+    });
 
     const loans = loanAccounts.map((acc) => ({
       account_id: acc.id, name: acc.name,
@@ -121,6 +189,7 @@ function FlowContent({ year }: { year: string }) {
       transferencias, tarjetas, loans, gastos_totales, capital_fin,
       variacion: calcVariation(capital_inicio, capital_fin),
       nomina_display, nomina_confirmed, nomina_remaining, is_projected, is_partial,
+      tarjetasBreakdown, abonosDetail, transferenciasDetail, nominaSlots,
     });
     prevCapitalFin = capital_fin;
   }

@@ -4,43 +4,45 @@ import type { IncomeOverdueAlert } from "@/lib/domain/income";
 
 interface Props {
   alerts: IncomeOverdueAlert[];
+  hideLink?: boolean;
 }
 
-export function IncomeOverdueBanner({ alerts }: Props) {
+export function IncomeOverdueBanner({ alerts, hideLink = false }: Props) {
   if (alerts.length === 0) return null;
+
+  const totalOverdue = alerts.reduce((s, a) => s + a.overdueCount, 0);
 
   return (
     <div
-      className="rounded-xl border border-[var(--color-warning)]/40 px-5 py-4"
-      style={{ backgroundColor: "rgba(245,158,11,0.08)" }}
+      className="flex items-center gap-3 rounded-lg px-4 py-3 animate-in slide-in-from-top-3 duration-500"
+      style={{ background: "var(--color-navbar)", borderLeft: "4px solid var(--color-accent)" }}
     >
-      <div className="flex items-start gap-3">
-        <AlertTriangle className="w-4 h-4 text-[var(--color-warning)] mt-0.5 shrink-0" />
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-[var(--color-foreground)]">
-            Pagos de nómina pendientes de confirmar
-          </p>
-          {alerts.map((a) => (
-            <p key={a.sourceId} className="text-xs text-[var(--color-muted)]">
-              ·{" "}
-              <span className="font-medium text-[var(--color-foreground)]">{a.sourceName}</span>
-              {" — "}
-              {a.overdueCount === 1
-                ? "1 pago ya debió haberse recibido"
-                : `${a.overdueCount} pagos ya debieron haberse recibido`}
-              {a.confirmedCount > 0 &&
-                ` (${a.confirmedCount} confirmado${a.confirmedCount > 1 ? "s" : ""})`}
-            </p>
-          ))}
-          <p className="text-xs text-[var(--color-muted)] mt-2">
-            Ve a{" "}
-            <Link href="/income" className="underline text-[var(--color-foreground)] hover:text-[var(--color-accent)] transition-colors">
-              Ingresos
-            </Link>
-            {" "}para confirmar los pagos recibidos y que el Capital Fin sea correcto.
-          </p>
-        </div>
+      <div
+        className="flex items-center gap-1.5 shrink-0 rounded-full px-2 py-0.5"
+        style={{ background: "rgba(232,100,60,0.20)" }}
+      >
+        <AlertTriangle className="w-3.5 h-3.5 animate-pulse" style={{ color: "var(--color-accent)" }} />
+        <span className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--color-accent)" }}>
+          Acción
+        </span>
       </div>
+      <p className="text-sm text-white/80">
+        Tienes{" "}
+        <span className="font-bold text-white">
+          {totalOverdue} {totalOverdue === 1 ? "pago sin confirmar" : "pagos sin confirmar"}
+        </span>{" "}
+        este mes.{" "}
+        {hideLink ? (
+          <>Confirma los pagos en las cards de abajo para que el Capital Fin sea correcto.</>
+        ) : (
+          <>
+            <Link href="/income" className="underline text-white/80 hover:text-white transition-colors">
+              Ve a Ingresos
+            </Link>{" "}
+            para registrar los pagos recibidos y que el Capital Fin sea correcto.
+          </>
+        )}
+      </p>
     </div>
   );
 }

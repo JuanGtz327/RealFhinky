@@ -34,7 +34,7 @@ export default function IncomePage() {
       </FadeIn>
 
       {overdueAlerts.length > 0 && (
-        <IncomeOverdueBanner alerts={overdueAlerts} />
+        <IncomeOverdueBanner alerts={overdueAlerts} hideLink />
       )}
 
       <section className="space-y-4">

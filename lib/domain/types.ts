@@ -11,6 +11,36 @@ export interface LoanAmount {
   amount: number;
 }
 
+export interface TarjetaBreakdown {
+  id: string;
+  name: string;
+  bank: string;
+  purchases: number;
+  msi: number;
+}
+
+export interface TransactionDetail {
+  accountName: string;
+  date: string;
+  merchant: string;
+  amount: number;
+}
+
+export interface NominaSlot {
+  date: string;
+  isPast: boolean;
+  confirmed: boolean;
+  amount: number;
+}
+
+export interface NominaSourceSlots {
+  sourceId: string;
+  sourceName: string;
+  frequency: string;
+  blendedTotal: number;
+  slots: NominaSlot[];
+}
+
 export interface FlowRow {
   month: string;
   capital_inicio: number;
@@ -28,6 +58,10 @@ export interface FlowRow {
   nomina_remaining?: number;
   is_projected?: boolean;
   is_partial?: boolean;
+  tarjetasBreakdown?: TarjetaBreakdown[];
+  abonosDetail?: TransactionDetail[];
+  transferenciasDetail?: TransactionDetail[];
+  nominaSlots?: NominaSourceSlots[];
 }
 
 export interface DebitAccountSummary {

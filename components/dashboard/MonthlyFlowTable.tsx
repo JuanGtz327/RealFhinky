@@ -1,30 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { DataTable, Column } from "@/components/ui/data-table";
 import { CurrencyCell, VariationCell } from "@/components/ui/currency-cell";
 import { formatMonthShort } from "@/lib/utils/formatters";
+import { FlowCellBreakdownDialog } from "@/components/dashboard/FlowCellBreakdownDialog";
+import type { FlowRow } from "@/lib/domain/types";
 
 export interface LoanColumn { id: string; name: string }
 
-export interface FlowRow {
-  month: string;
-  capital_inicio: number;
-  nomina: number;
-  abonos: number;
-  ingresos_totales: number;
-  transferencias: number;
-  tarjetas: number;
-  loans: { account_id: string; name: string; amount: number }[];
-  gastos_totales: number;
-  capital_fin: number;
-  variacion: number | null;
-  nomina_display?: number;
-  nomina_confirmed?: number;
-  nomina_remaining?: number;
-  is_projected?: boolean;
-  is_partial?: boolean;
-  [key: string]: unknown;
-}
+export type { FlowRow };
 
 interface MonthlyFlowTableProps {
   rows: FlowRow[];
@@ -32,7 +17,15 @@ interface MonthlyFlowTableProps {
   currentMonth: string;
 }
 
+interface DialogState {
+  open: boolean;
+  type: "ingresos" | "gastos";
+  row: FlowRow;
+}
+
 export function MonthlyFlowTable({ rows, loanColumns, currentMonth }: MonthlyFlowTableProps) {
+  const [dialog, setDialog] = useState<DialogState | null>(null);
+
   const flatRows = rows.map((r) => {
     const flat: Record<string, unknown> = { ...r };
     for (const lc of loanColumns) {
@@ -64,7 +57,7 @@ export function MonthlyFlowTable({ rows, loanColumns, currentMonth }: MonthlyFlo
       header: "Nómina",
       align: "right" as const,
       render: (v, row) => {
-        const r = row as FlowRow;
+        const r = row as unknown as FlowRow;
         if (r.month === currentMonth && r.nomina_display !== undefined && (r.nomina_confirmed ?? 0) > 0) {
           return (
             <div className="flex items-center justify-end gap-1.5">
@@ -79,11 +72,41 @@ export function MonthlyFlowTable({ rows, loanColumns, currentMonth }: MonthlyFlo
       },
     },
     { key: "abonos",            header: "Abonos",            align: "right", render: (v) => <CurrencyCell amount={Number(v)} dimIfZero colorize /> },
-    { key: "ingresos_totales",  header: "Ingresos Totales",  align: "right", render: (v) => <CurrencyCell amount={Number(v)} colorize /> },
+    {
+      key: "ingresos_totales",
+      header: "Ingresos Totales",
+      align: "right" as const,
+      render: (v, row) => {
+        const r = row as unknown as FlowRow;
+        return (
+          <button
+            onClick={() => setDialog({ open: true, type: "ingresos", row: r })}
+            className="underline decoration-dotted underline-offset-2 cursor-pointer hover:text-[var(--color-accent)] transition-colors"
+          >
+            <CurrencyCell amount={Number(v)} colorize />
+          </button>
+        );
+      },
+    },
     { key: "transferencias",    header: "Transferencias",    align: "right", render: (v) => <CurrencyCell amount={Number(v)} dimIfZero /> },
     { key: "tarjetas",          header: "Tarjetas",          align: "right", render: (v) => <CurrencyCell amount={Number(v)} dimIfZero /> },
     ...loanCols,
-    { key: "gastos_totales",    header: "Gastos Totales",    align: "right", render: (v) => <CurrencyCell amount={Number(v)} /> },
+    {
+      key: "gastos_totales",
+      header: "Gastos Totales",
+      align: "right" as const,
+      render: (v, row) => {
+        const r = row as unknown as FlowRow;
+        return (
+          <button
+            onClick={() => setDialog({ open: true, type: "gastos", row: r })}
+            className="underline decoration-dotted underline-offset-2 cursor-pointer hover:text-[var(--color-accent)] transition-colors"
+          >
+            <CurrencyCell amount={Number(v)} />
+          </button>
+        );
+      },
+    },
     { key: "capital_fin",       header: "Capital Fin",       align: "right", render: (v) => <CurrencyCell amount={Number(v)} colorize /> },
     { key: "variacion",         header: "% Variación",       align: "right", render: (v) => <VariationCell variation={v as number | null} /> },
   ];
@@ -116,16 +139,29 @@ export function MonthlyFlowTable({ rows, loanColumns, currentMonth }: MonthlyFlo
   }
 
   return (
-    <DataTable
-      columns={columns}
-      rows={flatRows}
-      footerRow={footerRow}
-      highlightRow={(row) => {
-        if (row.month === currentMonth) return "current";
-        if (row.is_projected) return "projected";
-        return null;
-      }}
-      emptyMessage="Sin datos para este año"
-    />
+    <>
+      <DataTable
+        columns={columns}
+        rows={flatRows}
+        footerRow={footerRow}
+        highlightRow={(row) => {
+          if (row.month === currentMonth) return "current";
+          if (row.is_projected) return "projected";
+          return null;
+        }}
+        emptyMessage="Sin datos para este año"
+      />
+      {dialog && (
+        <FlowCellBreakdownDialog
+          open={dialog.open}
+          onOpenChange={(v) => setDialog(v ? dialog : null)}
+          type={dialog.type}
+          month={dialog.row.month}
+          row={dialog.row}
+          isCurrent={dialog.row.month === currentMonth}
+          isFuture={dialog.row.month > currentMonth}
+        />
+      )}
+    </>
   );
 }
