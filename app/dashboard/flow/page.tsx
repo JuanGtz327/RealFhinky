@@ -4,7 +4,8 @@ import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { IncomeRepository } from "@/lib/repositories/income.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
 import { calcVariation, formatMXN } from "@/lib/utils/formatters";
-import { computeMonthlyNomina } from "@/lib/domain/income";
+import { computeMonthlyNomina, computeIncomeOverdueAlerts } from "@/lib/domain/income";
+import { IncomeOverdueBanner } from "@/components/forecast/IncomeOverdueBanner";
 import { format } from "date-fns";
 import { MonthlyFlowTable } from "@/components/dashboard/MonthlyFlowTable";
 import { YearSelector } from "@/components/ui/year-selector";
@@ -28,6 +29,9 @@ function FlowContent({ year }: { year: string }) {
   const incomeSources  = incRepo.findAllSources();
 
   const patrimonioActual = debitAccounts.reduce((s, a) => s + a.current_balance, 0);
+
+  const currentMonthEntries = incRepo.findEntriesByMonthGrouped(CURRENT_MONTH);
+  const overdueAlerts = computeIncomeOverdueAlerts(incomeSources, currentMonthEntries, CURRENT_MONTH, format(new Date(), "yyyy-MM-dd"));
 
   const currentYear = format(new Date(), "yyyy");
   let prevCapitalFin: number | null = null;
@@ -126,6 +130,11 @@ function FlowContent({ year }: { year: string }) {
 
   return (
     <>
+      {overdueAlerts.length > 0 && (
+        <div className="mb-4">
+          <IncomeOverdueBanner alerts={overdueAlerts} />
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-6 mb-2">
         <div className="flex gap-6">
           <div>

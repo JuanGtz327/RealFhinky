@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Wallet, ArrowLeftRight, Settings } from "lucide-react";
+import { LayoutDashboard, Wallet, ArrowLeftRight, DollarSign, TrendingUp, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QuickActions } from "@/components/layout/QuickActions";
 
@@ -10,6 +10,8 @@ const NAV_ITEMS = [
   { href: "/dashboard",    label: "Dashboard",     icon: LayoutDashboard },
   { href: "/accounts",     label: "Cuentas",       icon: Wallet },
   { href: "/transactions", label: "Transacciones", icon: ArrowLeftRight },
+  { href: "/income",       label: "Ingresos",      icon: DollarSign },
+  { href: "/forecast",     label: "Pronóstico",    icon: TrendingUp },
 ];
 
 export function Navbar() {

@@ -1,0 +1,73 @@
+import { getDb } from "@/lib/db";
+import { IncomeRepository } from "@/lib/repositories/income.repo";
+import { AccountsRepository } from "@/lib/repositories/accounts.repo";
+import { computeIncomeConfirmationStatus, computeIncomeOverdueAlerts } from "@/lib/domain/income";
+import { formatMonthLabel } from "@/lib/utils/formatters";
+import { format } from "date-fns";
+import { FadeIn } from "@/components/ui/animated";
+import { IncomeOverdueBanner } from "@/components/forecast/IncomeOverdueBanner";
+import { IncomeSourceCard } from "@/components/forecast/IncomeSourceCard";
+import { NewIncomeSourceModal } from "@/components/forecast/NewIncomeSourceModal";
+import EmptyState from "@/components/kokonutui/empty-state";
+import { DollarSign } from "lucide-react";
+
+const CURRENT_MONTH = format(new Date(), "yyyy-MM");
+
+export default function IncomePage() {
+  const db       = getDb();
+  const incRepo  = new IncomeRepository(db);
+  const accRepo  = new AccountsRepository(db);
+
+  const sources        = incRepo.findAllSources();
+  const entriesGrouped = incRepo.findEntriesByMonthGrouped(CURRENT_MONTH);
+  const debitAccounts  = accRepo.findByType("debit").map((a) => ({ id: a.id, name: a.name, bank: a.bank }));
+  const overdueAlerts  = computeIncomeOverdueAlerts(sources, entriesGrouped, CURRENT_MONTH, format(new Date(), "yyyy-MM-dd"));
+
+  return (
+    <div className="space-y-8">
+      <FadeIn>
+        <h1 className="text-2xl font-semibold text-[var(--color-foreground)]">Ingresos</h1>
+        <p className="text-sm text-[var(--color-muted)] mt-0.5">
+          Fuentes de ingreso y confirmación de pagos — {formatMonthLabel(CURRENT_MONTH)}
+        </p>
+      </FadeIn>
+
+      {overdueAlerts.length > 0 && (
+        <IncomeOverdueBanner alerts={overdueAlerts} />
+      )}
+
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-[var(--color-navbar)]">
+            Fuentes de ingreso
+            <span className="ml-2 text-sm font-normal text-[var(--color-muted)]">({sources.length})</span>
+          </h2>
+          <NewIncomeSourceModal debitAccounts={debitAccounts} />
+        </div>
+
+        {sources.length === 0 ? (
+          <EmptyState
+            icon={<DollarSign className="w-6 h-6" />}
+            title="Sin fuentes de ingreso configuradas"
+            description="Agrega tu nómina para ver pronósticos precisos y recibir alertas de confirmación"
+          />
+        ) : (
+          <div className="space-y-3">
+            {sources.map((src) => {
+              const entries = entriesGrouped.get(src.id) ?? [];
+              const status  = computeIncomeConfirmationStatus(src, entries);
+              return (
+                <IncomeSourceCard
+                  key={src.id}
+                  source={src}
+                  entries={entries}
+                  status={status}
+                />
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

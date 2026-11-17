@@ -15,6 +15,11 @@ function getConnection(): Database.Database {
     instance.pragma("foreign_keys = ON");
     const schema = fs.readFileSync(SCHEMA_PATH, "utf-8");
     instance.exec(schema);
+    // Additive migrations for existing DBs
+    const cols = instance.pragma("table_info(income_sources)") as { name: string }[];
+    if (!cols.some((c) => c.name === "account_id")) {
+      instance.exec("ALTER TABLE income_sources ADD COLUMN account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL");
+    }
   }
   return instance;
 }

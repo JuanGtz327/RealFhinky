@@ -19,10 +19,9 @@ interface Props {
   source: IncomeSource;
   entries: IncomeEntry[];
   status: IncomeConfirmationStatus;
-  onEntryDeleted: () => void;
 }
 
-export function IncomeSourceCard({ source, entries, status, onEntryDeleted }: Props) {
+export function IncomeSourceCard({ source, entries, status }: Props) {
   const router             = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleting,   setDeleting]   = useState<string | null>(null);
@@ -32,7 +31,6 @@ export function IncomeSourceCard({ source, entries, status, onEntryDeleted }: Pr
     try {
       await fetch(`/api/income/entries/${entryId}`, { method: "DELETE" });
       router.refresh();
-      onEntryDeleted();
     } finally {
       setDeleting(null);
     }

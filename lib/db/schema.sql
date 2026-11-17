@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS income_sources (
   is_active             INTEGER NOT NULL DEFAULT 1,
   start_date            TEXT,
   custom_interval_days  INTEGER,
+  account_id            TEXT REFERENCES accounts(id) ON DELETE SET NULL,
   created_at            TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

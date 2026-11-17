@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import type { IncomeOverdueAlert } from "@/lib/domain/income";
 
@@ -32,7 +33,11 @@ export function IncomeOverdueBanner({ alerts }: Props) {
             </p>
           ))}
           <p className="text-xs text-[var(--color-muted)] mt-2">
-            Confirma los pagos recibidos en las cards de abajo para que el Capital Fin sea correcto.
+            Ve a{" "}
+            <Link href="/income" className="underline text-[var(--color-foreground)] hover:text-[var(--color-accent)] transition-colors">
+              Ingresos
+            </Link>
+            {" "}para confirmar los pagos recibidos y que el Capital Fin sea correcto.
           </p>
         </div>
       </div>

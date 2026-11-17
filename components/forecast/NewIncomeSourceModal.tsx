@@ -6,7 +6,17 @@ import { FormDialog } from "@/components/ui/form-dialog";
 import { IncomeSourceForm } from "@/components/forecast/IncomeSourceForm";
 import { motion } from "motion/react";
 
-export function NewIncomeSourceModal() {
+interface DebitAccountOption {
+  id: string;
+  name: string;
+  bank: string;
+}
+
+interface Props {
+  debitAccounts?: DebitAccountOption[];
+}
+
+export function NewIncomeSourceModal({ debitAccounts = [] }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -27,7 +37,7 @@ export function NewIncomeSourceModal() {
         title="Nueva fuente de ingreso"
         description="Nómina, freelance, renta u otro ingreso recurrente"
       >
-        <IncomeSourceForm mode="create" onSuccess={() => setOpen(false)} />
+        <IncomeSourceForm mode="create" onSuccess={() => setOpen(false)} debitAccounts={debitAccounts} />
       </FormDialog>
     </>
   );

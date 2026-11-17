@@ -10,6 +10,7 @@ const CreateSourceSchema = z.object({
   is_variable: z.boolean().optional(),
   start_date: z.string().optional(),
   custom_interval_days: z.number().int().min(1).optional(),
+  account_id: z.string().optional().nullable(),
 }).refine(
   (d) => d.frequency !== "custom" || (d.custom_interval_days != null && d.custom_interval_days >= 1),
   { message: "Frecuencia personalizada requiere especificar el intervalo en días", path: ["custom_interval_days"] }

@@ -15,6 +15,7 @@ const schema = z.object({
   is_variable:          z.boolean().optional(),
   start_date:           z.string().optional(),
   custom_interval_days: z.coerce.number().int().min(1).optional(),
+  account_id:           z.string().optional().nullable(),
 }).refine(
   (d) => d.frequency !== "custom" || (d.custom_interval_days != null && d.custom_interval_days >= 1),
   { message: "Especifica cada cuántos días se repite", path: ["custom_interval_days"] }
@@ -22,15 +23,22 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+interface DebitAccountOption {
+  id: string;
+  name: string;
+  bank: string;
+}
+
 interface IncomeSourceFormProps {
   initial?: Partial<FormData> & { id?: string };
   mode?: "create" | "edit";
   onSuccess?: () => void;
+  debitAccounts?: DebitAccountOption[];
 }
 
 const FREQ_LABELS = { weekly: "Semanal", biweekly: "Quincenal", monthly: "Mensual", custom: "Personalizado" };
 
-export function IncomeSourceForm({ initial, mode = "create", onSuccess }: IncomeSourceFormProps) {
+export function IncomeSourceForm({ initial, mode = "create", onSuccess, debitAccounts = [] }: IncomeSourceFormProps) {
   const router = useRouter();
   const { toast, update } = useToast();
   const [pending, startTransition] = useTransition();
@@ -147,6 +155,21 @@ export function IncomeSourceForm({ initial, mode = "create", onSuccess }: Income
         <Input type="date" value={form.start_date ?? ""}
           onChange={(e) => set("start_date", e.target.value)} />
       </FormField>
+
+      {debitAccounts.length > 0 && (
+        <FormField label="Cuenta donde se deposita (opcional)">
+          <select
+            className="select-field"
+            value={form.account_id ?? ""}
+            onChange={(e) => set("account_id", e.target.value || null)}
+          >
+            <option value="">— Ninguna / no especificada</option>
+            {debitAccounts.map((a) => (
+              <option key={a.id} value={a.id}>{a.name} · {a.bank}</option>
+            ))}
+          </select>
+        </FormField>
+      )}
 
       {preview && (
         <div className="rounded-md bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/20 p-3 text-sm">

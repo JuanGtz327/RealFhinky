@@ -59,6 +59,7 @@ export interface IncomeSource {
   is_active: boolean;
   start_date?: string;
   custom_interval_days?: number;
+  account_id?: string | null;
   created_at: string;
 }
 
