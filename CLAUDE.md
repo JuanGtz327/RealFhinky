@@ -82,6 +82,16 @@ Cambiar solo esos archivos para re-tematizar toda la app.
   - Frecuencias por **días** (espejo de income_sources): weekly, biweekly, monthly, custom, one_time.
   - Confirmación manual via `planned_transfer_entries`. Mismo patrón blending que income_sources.
   - Temporal: mes actual = remaining-only, futuro = blended, pasado = solo confirmados.
+- **Préstamos (`type=loan`)**: Cuentas de préstamo con lógica propia de amortización. Semántica:
+  - Campos específicos en `accounts`: `loan_original_amount`, `loan_interest_rate`, `loan_term_months`, `loan_monthly_payment`, `loan_start_date`, `loan_payments_made`.
+  - **Amortización francesa** (la más común en México): `M = P × [r(1+r)^n] / [(1+r)^n - 1]`. Para tasa 0%: `M = P / n`.
+  - **Mid-life onboarding**: `loan_payments_made` registra cuántos pagos se hicieron ANTES de Finkhy. Post-onboarding, los pagos se cuentan desde `cycle_payments`. Total: `loan_payments_made + cycle_payments.count`.
+  - **Pagos variables**: el usuario puede pagar más o menos que la mensualidad estándar. Al confirmar un pago, se actualiza `current_balance` restando la porción a capital (`amount_paid - interés_del_mes`). La tabla de amortización recalcula desde el nuevo saldo.
+  - **Confirmación de pago**: reutiliza `cycle_payments`. Endpoint dedicado `POST /api/loans/confirm-payment` que envuelve en transacción DB: (1) upsert cycle_payment, (2) update `accounts.current_balance -= principal_portion`.
+  - **Proyección en flow table**: pasado = monto confirmado de cycle_payments; actual = mensualidad si no confirmado; futuro = mensualidad si dentro del plazo restante.
+  - `current_balance` es la fuente de verdad del saldo pendiente. Se actualiza al confirmar cada pago.
+  - Lógica de dominio en `lib/domain/loans.ts`: `computeMonthlyPayment`, `computeAmortizationSchedule`, `computeLoanProgress`, `computeEstimatedPayoffDate`, `computeRemainingTerm`, `computeLoanProjectionForMonth`, `computeLoanKpis`.
+  - **UI**: `AccountMetaLoan` (KPIs) + `LoanAmortizationTable` (tabla completa capital/interés) en `/accounts/[id]`. Sin página `/loans` dedicada.
 
 ## Schema DB — Cambios recientes
 - `accounts` → columna `opening_balance_carryover REAL` (arrastre opaco al onboardear)
@@ -93,6 +103,7 @@ Cambiar solo esos archivos para re-tematizar toda la app.
 - `recurring_charge_entries` → tabla nueva. Columnas: `id`, `recurring_charge_id` (FK), `date`, `amount`, `notes`, `created_at`.
 - `planned_transfers` → tabla nueva. Columnas: `id`, `name`, `account_id` (FK NOT NULL), `direction` (in/out), `frequency`, `base_amount`, `is_variable`, `is_active`, `start_date`, `end_date`, `custom_interval_days`, `notes`, `created_at`.
 - `planned_transfer_entries` → tabla nueva. Columnas: `id`, `planned_transfer_id` (FK), `date`, `amount`, `notes`, `created_at`.
+- `accounts` → 6 columnas nuevas para préstamos: `loan_original_amount REAL`, `loan_interest_rate REAL`, `loan_term_months INTEGER`, `loan_monthly_payment REAL`, `loan_start_date TEXT`, `loan_payments_made INTEGER`.
 
 ## Base de datos — Archivos y estado
 - **Archivos DB ignorados en git**: `finkhy.db`, `finkhy.db-shm`, `finkhy.db-wal`, `finkhy_seed.sql`
@@ -590,3 +601,71 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 - [x] 14.I.1 Verificar `npm run check` pasa
 - [x] 14.I.2 Test en browser: crear suscripción → confirmar → verificar en flow table y NextCyclePreview
 - [x] 14.I.3 Test en browser: crear planned transfer → confirmar → verificar en flow table
+
+### Fase 15 — Préstamos como Ciudadanos de Primera Clase
+
+**Convención:** `[ ]` pendiente · `[x]` completado · `![]` decisión descubierta durante implementación
+**Plan completo:** `docs/fase-15-prestamos.md`
+
+#### 15.0 — Documentación previa (commit)
+- [x] 15.0.1 Guardar plan en `docs/fase-15-prestamos.md`
+- [x] 15.0.2 Agregar tracking de Fase 15 al CLAUDE.md
+- [x] 15.0.3 Documentar reglas de dominio en CLAUDE.md (amortización francesa, mid-life onboarding, confirmación de pagos, proyección en flow table)
+
+#### 15.A — Data Model + Types (commit)
+- [x] 15.A.1 Agregar 6 columnas a `accounts` en `schema.sql`: `loan_original_amount`, `loan_interest_rate`, `loan_term_months`, `loan_monthly_payment`, `loan_start_date`, `loan_payments_made`
+- [x] 15.A.2 Agregar migración aditiva a `lib/db/sqlite.ts`
+- [x] 15.A.3 Extender `Account` en `lib/types.ts` con 6 campos opcionales
+- [x] 15.A.4 Agregar domain types a `lib/domain/types.ts` (AmortizationRow, LoanProgress, LoanKpis)
+- [x] 15.A.5 Extender `CreateAccountInput`, `UpdateAccountInput` y métodos `create()`/`update()` en `accounts.repo.ts`
+- [x] 15.A.6 Extender Zod schemas en API routes de accounts
+
+#### 15.B — Domain Logic: `lib/domain/loans.ts` (commit)
+- [x] 15.B.1 Crear `lib/domain/loans.ts` (`computeMonthlyPayment`, `computeAmortizationSchedule`, `computeLoanProgress`, `computeEstimatedPayoffDate`, `computeRemainingTerm`, `computeLoanProjectionForMonth`, `computeLoanKpis`)
+- [x] 15.B.2 Actualizar `lib/domain/index.ts` barrel export
+- [x] 15.B.3 Verificar: `npm run check`
+
+#### 15.C — Tests Domain Logic (commit)
+- [x] 15.C.1 Crear `__tests__/domain-loans.test.ts` (amortización, progreso, proyección, edge cases)
+- [ ] 15.C.2 Extender `__tests__/fixtures/dataset.ts` con campos de préstamo
+- [x] 15.C.3 Verificar: `npm run check`
+
+#### 15.D — AccountForm: Campos de Préstamo (commit)
+- [x] 15.D.1 Separar condición `isCredit` en `AccountForm.tsx`: credit vs loan vs debit
+- [x] 15.D.2 Agregar sección de campos loan-specific: monto original, tasa, plazo, mensualidad, inicio, pagos hechos
+- [x] 15.D.3 Extender Zod schema del form con 6 campos opcionales
+
+#### 15.E — Vista Detalle: AccountMetaLoan + LoanAmortizationTable (commit)
+- [x] 15.E.1 Crear `components/accounts/AccountMetaLoan.tsx` (4 KPIs: monto original, saldo, mensualidad, progreso)
+- [x] 15.E.2 Crear `components/accounts/LoanAmortizationTable.tsx` (tabla completa: #, mes, pago, capital, interés, saldo, status)
+- [x] 15.E.3 Modificar `app/accounts/[id]/page.tsx`: separar `isCredit`/`isLoan`/`isDebit`, renderizar componentes loan-specific
+- [ ] 15.E.4 Verificar en browser: KPIs y tabla de amortización renderizan correctamente
+
+#### 15.F — Confirmación de Pagos de Préstamo (commit)
+- [x] 15.F.1 Crear `components/accounts/ConfirmLoanPaymentDialog.tsx` (desglose capital/interés, monto editable)
+- [x] 15.F.2 Crear `app/api/loans/confirm-payment/route.ts` (transacción atómica: cycle_payment + update balance)
+- [ ] 15.F.3 Integrar botón de confirmación en la tabla de amortización (fila actual)
+- [ ] 15.F.4 Verificar en browser: confirmar pago → balance actualiza → tabla recalcula
+
+#### 15.G — Flow Table Integration (commit) ⚠️ highest risk
+- [x] 15.G.1 Modificar `app/dashboard/flow/page.tsx`: reemplazar `txRepo.sumByAccountAndMonth` para loans con `computeLoanProjectionForMonth`
+- [ ] 15.G.2 Modificar `lib/domain/flow.ts`: mismo cambio, agregar `cpRepo` a repos
+- [x] 15.G.3 Actualizar seed capital para años futuros (sección lines ~80-95)
+- [ ] 15.G.4 Verificar: flow table proyecta préstamos correctamente (pasado/actual/futuro)
+
+#### 15.H — Dashboard Integration (commit)
+- [ ] 15.H.1 Modificar `app/dashboard/debt/page.tsx`: sección "Préstamos" con columnas loan-specific (saldo, mensualidad, progreso, tasa)
+- [ ] 15.H.2 Modificar `app/dashboard/page.tsx`: separar widget de tarjetas vs préstamos
+- [ ] 15.H.3 Extender `lib/domain/kpis.ts`: desglose `totalDeudaTarjetas` + `totalDeudaPrestamos`
+
+#### 15.I — Polish + Tests finales (commit)
+- [x] 15.I.1 Verificar `npm run check` pasa
+- [ ] 15.I.2 Browser: crear préstamo con todos los campos → form guarda correctamente
+- [ ] 15.I.3 Browser: detalle de préstamo → KPIs y tabla de amortización
+- [ ] 15.I.4 Browser: confirmar pago → balance actualiza y tabla recalcula
+- [ ] 15.I.5 Browser: confirmar pago variable (mayor a mensualidad) → recálculo correcto
+- [ ] 15.I.6 Browser: flow table muestra proyecciones de préstamos
+- [ ] 15.I.7 Browser: dashboard debt muestra préstamos con columnas apropiadas
+- [ ] 15.I.8 Edge case: préstamo con tasa 0%
+- [ ] 15.I.9 Edge case: préstamo completamente pagado (balance = 0)
+- [x] 15.I.10 Verificar tests existentes no regresan

@@ -16,6 +16,12 @@ export interface Account {
   is_active: boolean;
   opening_balance_carryover?: number;
   flow_adjustment?: number;
+  loan_original_amount?: number;
+  loan_interest_rate?: number;
+  loan_term_months?: number;
+  loan_monthly_payment?: number;
+  loan_start_date?: string;
+  loan_payments_made?: number;
   created_at: string;
   updated_at: string;
 }

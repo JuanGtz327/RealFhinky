@@ -15,6 +15,12 @@ const CreateAccountSchema = z.object({
   payment_due_date: z.number().int().min(1).max(31).optional(),
   annual_fee: z.number().min(0).optional(),
   annual_fee_date: z.string().optional(),
+  loan_original_amount: z.number().positive().optional(),
+  loan_interest_rate: z.number().min(0).optional(),
+  loan_term_months: z.number().int().positive().optional(),
+  loan_monthly_payment: z.number().positive().optional(),
+  loan_start_date: z.string().optional(),
+  loan_payments_made: z.number().int().min(0).optional(),
 });
 
 export async function GET() {

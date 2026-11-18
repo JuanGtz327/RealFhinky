@@ -12,6 +12,8 @@ import { computeBillingPeriod } from "@/lib/utils/billing";
 import { computeMonthlyNomina, computeIncomeOverdueAlerts, computeExpectedPaymentDates, computeBlendedIncome } from "@/lib/domain/income";
 import { computeUntrackedDebt } from "@/lib/domain/flow-adjustment";
 import { computeEffectiveMonth } from "@/lib/domain/account-detail";
+import { computeLoanProjectionForMonth } from "@/lib/domain/loans";
+import { CyclePaymentsRepository } from "@/lib/repositories/cycle-payments.repo";
 import { computeBlendedCharge, isChargeInBillingPeriod } from "@/lib/domain/recurring-charges";
 import { computeMonthlyPlannedTransfers, computeBlendedTransfer } from "@/lib/domain/planned-transfers";
 import type { RecurringChargeEntry, PlannedTransferEntry } from "@/lib/types";
@@ -40,6 +42,7 @@ function FlowContent({ year }: { year: string }) {
   const adjRepo        = new FlowAdjustmentsRepository(db);
   const chargeRepo     = new RecurringChargesRepository(db);
   const ptRepo         = new PlannedTransfersRepository(db);
+  const cpRepo         = new CyclePaymentsRepository(db);
   const allCharges     = chargeRepo.findAll();
   const allTransfers   = ptRepo.findAll();
 
@@ -87,7 +90,10 @@ function FlowContent({ year }: { year: string }) {
           mTarjetas += txRepo.sumPurchasesByPeriod(acc.id, periodStart, periodEnd);
           mTarjetas += msiRepo.sumByAccountAndMonth(acc.id, mStr);
         }
-        const mLoans = loanAccounts.reduce((s, acc) => s + txRepo.sumByAccountAndMonth(acc.id, mStr), 0);
+        const mLoans = loanAccounts.reduce((s, acc) => {
+          const cp = cpRepo.findByAccountAndMonth(acc.id, mStr);
+          return s + computeLoanProjectionForMonth(acc, mStr, CURRENT_MONTH, cp);
+        }, 0);
         seedCapital = seedCapital + nResult.blended + mAbonos - mTransf - mTarjetas - mLoans;
       }
     }
@@ -250,10 +256,11 @@ function FlowContent({ year }: { year: string }) {
       };
     });
 
-    const loans = loanAccounts.map((acc) => ({
-      account_id: acc.id, name: acc.name,
-      amount: txRepo.sumByAccountAndMonth(acc.id, monthStr),
-    }));
+    const loans = loanAccounts.map((acc) => {
+      const cp = cpRepo.findByAccountAndMonth(acc.id, monthStr);
+      const amount = computeLoanProjectionForMonth(acc, monthStr, CURRENT_MONTH, cp);
+      return { account_id: acc.id, name: acc.name, amount };
+    });
     const loansTotal = loans.reduce((s, l) => s + l.amount, 0);
 
     const allAdj = adjRepo.findByMonth(monthStr);

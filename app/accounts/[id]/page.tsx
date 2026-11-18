@@ -10,6 +10,7 @@ import { format, addMonths, subMonths } from "date-fns";
 import { computeBillingPeriod } from "@/lib/utils/billing";
 import { getCreditUtilizationAlert, getCutDateAlert, getPaymentDateAlert, getAnnualFeeAlert } from "@/lib/utils/alerts";
 import { computeEffectiveMonth, computeBalanceDiscrepancy, computeCreditUtilization, computePaymentStatus, isChargeInBillingPeriod, computeBlendedCharge } from "@/lib/domain";
+import { computeLoanKpis, computeAmortizationSchedule } from "@/lib/domain/loans";
 import { getMsiProgress } from "@/lib/utils/msi";
 import { formatMXN } from "@/lib/utils/formatters";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -19,6 +20,8 @@ import { NextCyclePreview } from "@/components/accounts/NextCyclePreview";
 import { AccountTransactions } from "@/components/accounts/AccountTransactions";
 import { AccountMetaCredit } from "@/components/accounts/AccountMetaCredit";
 import { AccountMetaDebit } from "@/components/accounts/AccountMetaDebit";
+import { AccountMetaLoan } from "@/components/accounts/AccountMetaLoan";
+import { LoanAmortizationTable } from "@/components/accounts/LoanAmortizationTable";
 import { OpeningBalanceWizard } from "@/components/accounts/OpeningBalanceWizard";
 import { PlannedTransferCard } from "@/components/accounts/PlannedTransferCard";
 import { NewPlannedTransferButton } from "@/components/accounts/NewPlannedTransferButton";
@@ -48,7 +51,8 @@ export default function AccountDetailPage({
   const account = accRepo.findById(params.id);
   if (!account) notFound();
 
-  const isCredit = account.type === "credit" || account.type === "loan";
+  const isCredit = account.type === "credit";
+  const isLoan   = account.type === "loan";
   const isDebit  = account.type === "debit"  || account.type === "investment";
 
   const selectedYear = parseInt(searchParams.year ?? REAL_YEAR.toString(), 10);
@@ -68,8 +72,14 @@ export default function AccountDetailPage({
     : new Map();
 
   // ── Pagos confirmados por ciclo ──────────────────────────
-  const cyclePayments = isCredit ? cpRepo.findByAccount(params.id) : [];
+  const cyclePayments = (isCredit || isLoan) ? cpRepo.findByAccount(params.id) : [];
   const paymentByMonth = new Map(cyclePayments.map((p) => [p.cycle_month, p]));
+
+  // ── Préstamo: KPIs y tabla de amortización ───────────────
+  const loanKpis = isLoan ? computeLoanKpis(account, cyclePayments) : null;
+  const amortizationRows = isLoan
+    ? computeAmortizationSchedule(account, cyclePayments, currentMonth)
+    : [];
 
   // ── Tabla mes a mes ───────────────────────────────────────
   const monthlyRows = MONTHS.map((m) => {
@@ -328,11 +338,25 @@ export default function AccountDetailPage({
           effectiveMonthPaymentStatus={effectiveMonthPaymentStatus}
         />
       )}
+      {isLoan && loanKpis && (
+        <AccountMetaLoan kpis={loanKpis} paymentDueDate={account.payment_due_date} />
+      )}
       {isDebit && (
         <AccountMetaDebit
           balance={account.current_balance}
           yieldRate={account.yield_rate ?? 0}
         />
+      )}
+
+      {/* Tabla de amortización (solo préstamo) */}
+      {isLoan && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
+            <BarChart2 className="w-4 h-4 text-[var(--color-accent)]" />
+            Tabla de amortización
+          </h2>
+          <LoanAmortizationTable rows={amortizationRows} />
+        </section>
       )}
 
       {/* MSI activos + Próximo corte (solo crédito) */}

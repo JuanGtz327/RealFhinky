@@ -14,6 +14,12 @@ export interface CreateAccountInput {
   payment_due_date?: number;
   annual_fee?: number;
   annual_fee_date?: string;
+  loan_original_amount?: number;
+  loan_interest_rate?: number;
+  loan_term_months?: number;
+  loan_monthly_payment?: number;
+  loan_start_date?: string;
+  loan_payments_made?: number;
 }
 
 export interface UpdateAccountInput extends Partial<CreateAccountInput> {
@@ -51,8 +57,10 @@ export class AccountsRepository {
       `INSERT INTO accounts (
         id, name, type, bank, last4, credit_limit, current_balance,
         yield_rate, cut_date, payment_due_date, annual_fee, annual_fee_date,
-        is_active, created_at, updated_at
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)`,
+        is_active, created_at, updated_at,
+        loan_original_amount, loan_interest_rate, loan_term_months,
+        loan_monthly_payment, loan_start_date, loan_payments_made
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,?,?,?,?,?)`,
       [
         id, input.name, input.type, input.bank,
         input.last4 ?? null,
@@ -64,6 +72,12 @@ export class AccountsRepository {
         input.annual_fee ?? null,
         input.annual_fee_date ?? null,
         now, now,
+        input.loan_original_amount ?? null,
+        input.loan_interest_rate ?? null,
+        input.loan_term_months ?? null,
+        input.loan_monthly_payment ?? null,
+        input.loan_start_date ?? null,
+        input.loan_payments_made ?? null,
       ]
     );
     return this.findById(id)!;
@@ -76,6 +90,8 @@ export class AccountsRepository {
       "name", "type", "bank", "last4", "credit_limit", "current_balance",
       "yield_rate", "cut_date", "payment_due_date", "annual_fee",
       "annual_fee_date", "is_active", "opening_balance_carryover", "flow_adjustment",
+      "loan_original_amount", "loan_interest_rate", "loan_term_months",
+      "loan_monthly_payment", "loan_start_date", "loan_payments_made",
     ];
     for (const key of allowed) {
       if (key in input) {

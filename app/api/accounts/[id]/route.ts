@@ -17,6 +17,12 @@ const UpdateAccountSchema = z.object({
   annual_fee_date: z.string().optional(),
   is_active: z.boolean().optional(),
   flow_adjustment: z.number().nullable().optional(),
+  loan_original_amount: z.number().positive().optional(),
+  loan_interest_rate: z.number().min(0).optional(),
+  loan_term_months: z.number().int().positive().optional(),
+  loan_monthly_payment: z.number().positive().optional(),
+  loan_start_date: z.string().optional(),
+  loan_payments_made: z.number().int().min(0).optional(),
 });
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {

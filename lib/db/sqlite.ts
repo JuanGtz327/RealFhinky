@@ -93,6 +93,21 @@ function getConnection(): Database.Database {
     if (!rceColumns.some((c) => c.name === "transaction_id")) {
       instance.exec("ALTER TABLE recurring_charge_entries ADD COLUMN transaction_id TEXT REFERENCES transactions(id) ON DELETE SET NULL");
     }
+    // Add loan columns to accounts if missing
+    const accLoanCols = instance.pragma("table_info(accounts)") as { name: string }[];
+    const loanColDefs: [string, string][] = [
+      ["loan_original_amount", "REAL"],
+      ["loan_interest_rate", "REAL"],
+      ["loan_term_months", "INTEGER"],
+      ["loan_monthly_payment", "REAL"],
+      ["loan_start_date", "TEXT"],
+      ["loan_payments_made", "INTEGER"],
+    ];
+    for (const [col, type] of loanColDefs) {
+      if (!accLoanCols.some((c) => c.name === col)) {
+        instance.exec(`ALTER TABLE accounts ADD COLUMN ${col} ${type}`);
+      }
+    }
   }
   return instance;
 }

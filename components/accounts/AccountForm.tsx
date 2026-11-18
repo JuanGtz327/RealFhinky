@@ -20,6 +20,12 @@ const schema = z.object({
   payment_due_date: z.coerce.number().int().min(1).max(31).optional(),
   annual_fee:       z.coerce.number().min(0).optional(),
   annual_fee_date:  z.string().optional().or(z.literal("")),
+  loan_original_amount: z.coerce.number().min(0).optional(),
+  loan_interest_rate:   z.coerce.number().min(0).max(100).optional(),
+  loan_term_months:     z.coerce.number().int().min(1).optional(),
+  loan_monthly_payment: z.coerce.number().min(0).optional(),
+  loan_start_date:      z.string().optional().or(z.literal("")),
+  loan_payments_made:   z.coerce.number().int().min(0).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -42,7 +48,8 @@ export function AccountForm({ initial, mode, onSuccess }: AccountFormProps) {
   const [loading, setLoading] = useState(false);
 
   const type = form.type ?? "credit";
-  const isCredit  = type === "credit" || type === "loan";
+  const isCredit  = type === "credit";
+  const isLoan    = type === "loan";
   const isDebit   = type === "debit" || type === "investment";
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
@@ -118,14 +125,14 @@ export function AccountForm({ initial, mode, onSuccess }: AccountFormProps) {
           <Input placeholder="1234" maxLength={4} value={form.last4 ?? ""}
             onChange={(e) => set("last4", e.target.value)} />
         </FormField>
-        <FormField label={isCredit ? "Saldo actual (deuda)" : "Saldo actual"}>
+        <FormField label={isCredit ? "Saldo actual (deuda)" : isLoan ? "Deuda pendiente" : "Saldo actual"}>
           <Input type="number" step="0.01" placeholder="0.00"
             value={form.current_balance ?? ""}
             onChange={(e) => set("current_balance", parseFloat(e.target.value))} />
         </FormField>
       </div>
 
-      {/* Crédito/Préstamo */}
+      {/* Crédito */}
       {isCredit && (
         <>
           <div className="grid grid-cols-2 gap-4">
@@ -156,6 +163,52 @@ export function AccountForm({ initial, mode, onSuccess }: AccountFormProps) {
                 onChange={(e) => set("annual_fee_date", e.target.value)} />
             </FormField>
           </div>
+        </>
+      )}
+
+      {/* Préstamo */}
+      {isLoan && (
+        <>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Monto original del préstamo">
+              <Input type="number" step="0.01" placeholder="150000"
+                value={form.loan_original_amount ?? ""}
+                onChange={(e) => set("loan_original_amount", parseFloat(e.target.value))} />
+            </FormField>
+            <FormField label="Tasa de interés anual (%)">
+              <Input type="number" step="0.01" placeholder="12"
+                value={form.loan_interest_rate ?? ""}
+                onChange={(e) => set("loan_interest_rate", parseFloat(e.target.value))} />
+            </FormField>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Plazo (meses)">
+              <Input type="number" min={1} placeholder="48"
+                value={form.loan_term_months ?? ""}
+                onChange={(e) => set("loan_term_months", parseInt(e.target.value))} />
+            </FormField>
+            <FormField label="Mensualidad">
+              <Input type="number" step="0.01" placeholder="Dejar vacío para calcular"
+                value={form.loan_monthly_payment ?? ""}
+                onChange={(e) => set("loan_monthly_payment", parseFloat(e.target.value))} />
+            </FormField>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label="Fecha de inicio del préstamo">
+              <Input type="date" value={form.loan_start_date ?? ""}
+                onChange={(e) => set("loan_start_date", e.target.value)} />
+            </FormField>
+            <FormField label="Pagos ya realizados (onboarding)">
+              <Input type="number" min={0} placeholder="0"
+                value={form.loan_payments_made ?? ""}
+                onChange={(e) => set("loan_payments_made", parseInt(e.target.value))} />
+            </FormField>
+          </div>
+          <FormField label="Día de pago mensual">
+            <Input type="number" min={1} max={31} placeholder="15"
+              value={form.payment_due_date ?? ""}
+              onChange={(e) => set("payment_due_date", parseInt(e.target.value))} />
+          </FormField>
         </>
       )}
 

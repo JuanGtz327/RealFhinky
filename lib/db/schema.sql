@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS accounts (
   is_active                  INTEGER NOT NULL DEFAULT 1,
   opening_balance_carryover  REAL,
   flow_adjustment            REAL,
+  loan_original_amount       REAL,
+  loan_interest_rate         REAL,
+  loan_term_months           INTEGER,
+  loan_monthly_payment       REAL,
+  loan_start_date            TEXT,
+  loan_payments_made         INTEGER,
   created_at                 TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at                 TEXT NOT NULL DEFAULT (datetime('now'))
 );

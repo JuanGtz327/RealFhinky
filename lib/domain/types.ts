@@ -191,3 +191,34 @@ export interface TransferOverdueAlert {
   overdueCount: number;
   confirmedCount: number;
 }
+
+export interface AmortizationRow {
+  paymentNumber: number;
+  month: string;
+  payment: number;
+  principal: number;
+  interest: number;
+  remainingBalance: number;
+  isActual: boolean;
+  isPast: boolean;
+  isCurrent: boolean;
+  actualPayment?: number;
+}
+
+export interface LoanProgress {
+  paymentsMade: number;
+  totalPayments: number;
+  percentComplete: number;
+  remainingMonths: number;
+  estimatedPayoffDate: string;
+}
+
+export interface LoanKpis {
+  originalAmount: number;
+  currentBalance: number;
+  monthlyPayment: number;
+  interestRate: number;
+  progress: LoanProgress;
+  totalInterestPaid: number;
+  totalInterestProjected: number;
+}
