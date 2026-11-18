@@ -145,7 +145,7 @@ export function RecurringChargeCard({ charge, currentMonth, entries, accountName
               onClick={(e) => { e.stopPropagation(); setConfirmOpen(true); }}
               className="flex items-center gap-1 text-xs text-[var(--color-warning)] font-medium hover:underline transition-colors"
             >
-              <AlertTriangle className="w-3.5 h-3.5" />
+              <AlertTriangle className="w-3.5 h-3.5 text-[var(--color-warning)]" />
               <span>Confirmar</span>
             </button>
           ) : isUpcoming ? (

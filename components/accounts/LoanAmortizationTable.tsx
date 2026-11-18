@@ -32,10 +32,10 @@ export function LoanAmortizationTable({ rows, onConfirmPayment, paymentDueDate }
         <tbody className="divide-y divide-[var(--color-border)]">
           {rows.map((row) => {
             const rowClass = row.isCurrent
-              ? "row-highlight-current"
+              ? "row-highlight-current transition-colors"
               : row.isPast
-              ? "bg-[var(--color-surface)] opacity-70"
-              : "bg-[var(--color-surface)]";
+              ? "bg-[var(--color-surface)] opacity-70 hover:bg-[var(--color-bg)] transition-colors"
+              : "bg-[var(--color-surface)] hover:bg-[var(--color-bg)] transition-colors";
 
             const monthClass = row.isCurrent
               ? "px-3 py-2 font-mono text-xs font-bold text-[var(--color-accent)]"

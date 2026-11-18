@@ -41,7 +41,7 @@ export function LoanDebtTable({ loans }: Props) {
                 </Link>
               </td>
               <td className="px-4 py-3 text-[var(--color-muted)] text-xs">{loan.bank}</td>
-              <td className="px-4 py-3 text-right font-mono font-semibold" style={{ color: "var(--color-danger)" }}>
+              <td className="px-4 py-3 text-right font-mono font-semibold text-[var(--color-danger)]">
                 {formatMXN(loan.current_balance)}
               </td>
               <td className="px-4 py-3 text-right font-mono text-[var(--color-foreground)]">

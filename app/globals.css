@@ -81,6 +81,9 @@
   .row-highlight-negative       { background-color: rgba(220, 38, 38, 0.05); }
   .row-highlight-negative:hover { background-color: rgba(220, 38, 38, 0.08); }
 
+  /* Badge pill sobre fondo oscuro (navbar) — accent con 20% opacidad */
+  .badge-accent-pill { background-color: rgba(232, 100, 60, 0.20); }
+
   .border-accent  { border-color: var(--color-accent); }
   .border-surface { border-color: var(--color-border); }
 
