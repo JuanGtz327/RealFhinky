@@ -3,6 +3,7 @@ import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { getCreditUtilizationAlert } from "@/lib/utils/alerts";
 import { formatMXN } from "@/lib/utils/formatters";
 import { DebtTable } from "@/components/dashboard/DebtTable";
+import { LoanDebtTable } from "@/components/dashboard/LoanDebtTable";
 import { KPICard } from "@/components/ui/kpi-card";
 import { FadeIn, StaggerGrid } from "@/components/ui/animated";
 import { ArrowLeft, TrendingDown, CreditCard, Landmark } from "lucide-react";
@@ -15,7 +16,7 @@ export default function DebtPage() {
   const creditAccounts = accRepo.findByType("credit");
   const loanAccounts   = accRepo.findByType("loan");
 
-  const allCredit = [...creditAccounts, ...loanAccounts].map((acc) => {
+  const creditSummary = creditAccounts.map((acc) => {
     const limit       = acc.credit_limit ?? 0;
     const balance     = acc.current_balance;
     const utilization = limit > 0 ? (balance / limit) * 100 : 0;
@@ -28,9 +29,11 @@ export default function DebtPage() {
     };
   });
 
-  const totalBalance = allCredit.reduce((s, a) => s + a.current_balance, 0);
-  const totalLimit   = allCredit.reduce((s, a) => s + a.credit_limit, 0);
-  const totalFree    = allCredit.reduce((s, a) => s + a.available, 0);
+  const totalCreditBalance = creditSummary.reduce((s, a) => s + a.current_balance, 0);
+  const totalLoanBalance   = loanAccounts.reduce((s, a) => s + a.current_balance, 0);
+  const totalBalance = totalCreditBalance + totalLoanBalance;
+  const totalLimit   = creditSummary.reduce((s, a) => s + a.credit_limit, 0);
+  const totalFree    = creditSummary.reduce((s, a) => s + a.available, 0);
 
   return (
     <div className="space-y-8">
@@ -63,7 +66,7 @@ export default function DebtPage() {
           <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-navbar)]">
             <CreditCard className="w-4 h-4 text-[var(--color-navbar)]" /> Tarjetas de crédito
           </h2>
-          <DebtTable accounts={allCredit.filter((a) => creditAccounts.some((c) => c.id === a.id))} />
+          <DebtTable accounts={creditSummary} />
         </section>
       )}
 
@@ -73,7 +76,7 @@ export default function DebtPage() {
           <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-navbar)]">
             <Landmark className="w-4 h-4 text-[var(--color-navbar)]" /> Préstamos
           </h2>
-          <DebtTable accounts={allCredit.filter((a) => loanAccounts.some((l) => l.id === a.id))} />
+          <LoanDebtTable loans={loanAccounts} />
         </section>
       )}
     </div>

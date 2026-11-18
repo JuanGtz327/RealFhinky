@@ -627,7 +627,7 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 
 #### 15.C — Tests Domain Logic (commit)
 - [x] 15.C.1 Crear `__tests__/domain-loans.test.ts` (amortización, progreso, proyección, edge cases)
-- [ ] 15.C.2 Extender `__tests__/fixtures/dataset.ts` con campos de préstamo
+- [x] 15.C.2 Extender `__tests__/fixtures/dataset.ts` con campos de préstamo
 - [x] 15.C.3 Verificar: `npm run check`
 
 #### 15.D — AccountForm: Campos de Préstamo (commit)
@@ -639,24 +639,24 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 - [x] 15.E.1 Crear `components/accounts/AccountMetaLoan.tsx` (4 KPIs: monto original, saldo, mensualidad, progreso)
 - [x] 15.E.2 Crear `components/accounts/LoanAmortizationTable.tsx` (tabla completa: #, mes, pago, capital, interés, saldo, status)
 - [x] 15.E.3 Modificar `app/accounts/[id]/page.tsx`: separar `isCredit`/`isLoan`/`isDebit`, renderizar componentes loan-specific
-- [ ] 15.E.4 Verificar en browser: KPIs y tabla de amortización renderizan correctamente
+- [x] 15.E.4 Verificar en browser: KPIs y tabla de amortización renderizan correctamente
 
 #### 15.F — Confirmación de Pagos de Préstamo (commit)
 - [x] 15.F.1 Crear `components/accounts/ConfirmLoanPaymentDialog.tsx` (desglose capital/interés, monto editable)
 - [x] 15.F.2 Crear `app/api/loans/confirm-payment/route.ts` (transacción atómica: cycle_payment + update balance)
-- [ ] 15.F.3 Integrar botón de confirmación en la tabla de amortización (fila actual)
+- [x] 15.F.3 Integrar botón de confirmación en la tabla de amortización (fila actual)
 - [ ] 15.F.4 Verificar en browser: confirmar pago → balance actualiza → tabla recalcula
 
 #### 15.G — Flow Table Integration (commit) ⚠️ highest risk
 - [x] 15.G.1 Modificar `app/dashboard/flow/page.tsx`: reemplazar `txRepo.sumByAccountAndMonth` para loans con `computeLoanProjectionForMonth`
-- [ ] 15.G.2 Modificar `lib/domain/flow.ts`: mismo cambio, agregar `cpRepo` a repos
+- [x] 15.G.2 Modificar `lib/domain/flow.ts`: mismo cambio, agregar `cpRepo` a repos
 - [x] 15.G.3 Actualizar seed capital para años futuros (sección lines ~80-95)
-- [ ] 15.G.4 Verificar: flow table proyecta préstamos correctamente (pasado/actual/futuro)
+- [x] 15.G.4 Verificar: flow table proyecta préstamos correctamente (pasado/actual/futuro)
 
 #### 15.H — Dashboard Integration (commit)
-- [ ] 15.H.1 Modificar `app/dashboard/debt/page.tsx`: sección "Préstamos" con columnas loan-specific (saldo, mensualidad, progreso, tasa)
-- [ ] 15.H.2 Modificar `app/dashboard/page.tsx`: separar widget de tarjetas vs préstamos
-- [ ] 15.H.3 Extender `lib/domain/kpis.ts`: desglose `totalDeudaTarjetas` + `totalDeudaPrestamos`
+- [x] 15.H.1 Modificar `app/dashboard/debt/page.tsx`: sección "Préstamos" con columnas loan-specific (saldo, mensualidad, progreso, tasa) via `LoanDebtTable`
+- [x] 15.H.2 Modificar `app/dashboard/page.tsx`: separar widget de tarjetas vs préstamos
+- [x] 15.H.3 Extender `lib/domain/kpis.ts`: desglose `totalDeudaTarjetas` + `totalDeudaPrestamos`
 
 #### 15.I — Polish + Tests finales (commit)
 - [x] 15.I.1 Verificar `npm run check` pasa

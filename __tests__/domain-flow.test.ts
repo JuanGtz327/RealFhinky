@@ -105,16 +105,25 @@ describe("computeFlowRows", () => {
   });
 
   it("columnas de préstamos se generan correctamente", () => {
-    const loan = accRepo.create({ name: "Auto", type: "loan", bank: "Banorte", current_balance: 80000 });
-    txRepo.create({ account_id: loan.id, date: "2026-05-01", merchant: "Abono", amount: 3000, type: "purchase" });
+    // Loan with proper fields so projection works
+    const loan = accRepo.create({
+      name: "Auto", type: "loan", bank: "Banorte", current_balance: 80000,
+      loan_original_amount: 80000, loan_interest_rate: 0, loan_term_months: 24,
+      loan_monthly_payment: 3000, loan_start_date: "2026-01-01", loan_payments_made: 0,
+    });
 
     const { rows, loanColumns } = computeFlowRows("2026", { accRepo, txRepo, incRepo, msiRepo });
     expect(loanColumns).toHaveLength(1);
     expect(loanColumns[0].name).toBe("Auto");
 
+    // Past months without confirmed payment → 0 (new projection semantics)
     const mayo = rows.find((r) => r.month === "2026-05")!;
-    expect(mayo.loans[0].amount).toBe(3000);
-    expect(mayo.gastos_totales).toBe(3000);
+    expect(mayo.loans[0].amount).toBe(0);
+    expect(mayo.gastos_totales).toBe(0);
+
+    // Future months within term → monthly_payment projected
+    const diciembre = rows.find((r) => r.month === "2026-12")!;
+    expect(diciembre.loans[0].amount).toBe(3000);
   });
 
   it("ingresos de income_sources (nómina) aparecen en nomina, no en abonos", () => {

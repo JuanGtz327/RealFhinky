@@ -9,6 +9,7 @@ import { format } from "date-fns";
 
 import { DebitTable } from "@/components/dashboard/DebitTable";
 import { CreditTable } from "@/components/dashboard/CreditTable";
+import { LoanDebtTable } from "@/components/dashboard/LoanDebtTable";
 import { KPICard } from "@/components/ui/kpi-card";
 import { FadeIn, StaggerGrid } from "@/components/ui/animated";
 import {
@@ -59,7 +60,7 @@ export default function DashboardPage() {
   const { accounts: allDebit, totals: debitTotals } = computeDebitSummary([...debitAccounts, ...investAccounts]);
 
   // ── Widget: deuda ────────────────────────────────────────────
-  const allCredit = computeDebtSummary([...creditAccounts, ...loanAccounts]);
+  const allCredit = computeDebtSummary(creditAccounts);
 
   // ── Alertas de nómina ────────────────────────────────────────
   const incomeSources   = incRepo.findAllSources();
@@ -68,7 +69,9 @@ export default function DashboardPage() {
 
   // ── KPIs rápidos ─────────────────────────────────────────────
   const currentFlowRow  = flowRows.find((r) => r.month === CURRENT_MONTH);
-  const totalDeuda      = allCredit.reduce((s, a) => s + a.current_balance, 0);
+  const totalDeudaTarjetas = allCredit.reduce((s, a) => s + a.current_balance, 0);
+  const totalDeudaPrestamos = loanAccounts.reduce((s, a) => s + a.current_balance, 0);
+  const totalDeuda = totalDeudaTarjetas + totalDeudaPrestamos;
   const totalCapital    = debitTotals.capital;
   const totalGastoAnual = flowRows.reduce((s, r) => s + r.gastos_totales, 0);
   const totalMsiAnual   = flowRows.reduce((s, r) => s + r.tarjetas, 0);
@@ -152,6 +155,16 @@ export default function DashboardPage() {
           <CreditTable accounts={allCredit} />
         </section>
       </div>
+
+      {/* Préstamos */}
+      {loanAccounts.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-navbar)]">
+            <Landmark className="w-4 h-4 text-[var(--color-navbar)]" /> Préstamos
+          </h2>
+          <LoanDebtTable loans={loanAccounts} />
+        </section>
+      )}
 
       {/* Alertas de nómina */}
       <section className="space-y-3">

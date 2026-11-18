@@ -21,7 +21,7 @@ import { AccountTransactions } from "@/components/accounts/AccountTransactions";
 import { AccountMetaCredit } from "@/components/accounts/AccountMetaCredit";
 import { AccountMetaDebit } from "@/components/accounts/AccountMetaDebit";
 import { AccountMetaLoan } from "@/components/accounts/AccountMetaLoan";
-import { LoanAmortizationTable } from "@/components/accounts/LoanAmortizationTable";
+import { LoanAmortizationSection } from "@/components/accounts/LoanAmortizationSection";
 import { OpeningBalanceWizard } from "@/components/accounts/OpeningBalanceWizard";
 import { PlannedTransferCard } from "@/components/accounts/PlannedTransferCard";
 import { NewPlannedTransferButton } from "@/components/accounts/NewPlannedTransferButton";
@@ -349,13 +349,19 @@ export default function AccountDetailPage({
       )}
 
       {/* Tabla de amortización (solo préstamo) */}
-      {isLoan && (
+      {isLoan && loanKpis && (
         <section className="space-y-3">
           <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
             <BarChart2 className="w-4 h-4 text-[var(--color-accent)]" />
             Tabla de amortización
           </h2>
-          <LoanAmortizationTable rows={amortizationRows} />
+          <LoanAmortizationSection
+            rows={amortizationRows}
+            accountId={account.id}
+            currentBalance={account.current_balance}
+            monthlyPayment={loanKpis.monthlyPayment}
+            annualRate={loanKpis.interestRate}
+          />
         </section>
       )}
 

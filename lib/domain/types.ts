@@ -111,6 +111,8 @@ export interface AccountKpis {
   totalCapital: number;
   totalDeuda: number;
   totalDisponible: number;
+  totalDeudaTarjetas: number;
+  totalDeudaPrestamos: number;
 }
 
 export interface BlendedIncomeResult {

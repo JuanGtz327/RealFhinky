@@ -1,9 +1,14 @@
+import { format } from "date-fns";
 import { calcVariation } from "@/lib/utils/formatters";
+import { computeLoanProjectionForMonth } from "./loans";
 import type { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import type { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import type { IncomeRepository } from "@/lib/repositories/income.repo";
 import type { MsiRepository } from "@/lib/repositories/msi.repo";
+import type { CyclePaymentsRepository } from "@/lib/repositories/cycle-payments.repo";
 import type { FlowRow, LoanColumn } from "./types";
+
+const CURRENT_MONTH = format(new Date(), "yyyy-MM");
 
 export interface FlowData {
   rows: FlowRow[];
@@ -17,9 +22,10 @@ export function computeFlowRows(
     txRepo: TransactionsRepository;
     incRepo: IncomeRepository;
     msiRepo: MsiRepository;
+    cpRepo?: CyclePaymentsRepository;
   }
 ): FlowData {
-  const { accRepo, txRepo, incRepo, msiRepo } = repos;
+  const { accRepo, txRepo, incRepo, msiRepo, cpRepo } = repos;
   const loanAccounts   = accRepo.findByType("loan");
   const creditAccounts = accRepo.findByType("credit");
   const debitAccounts  = accRepo.findByType("debit");
@@ -51,12 +57,12 @@ export function computeFlowRows(
       tarjetas += msiRepo.sumByAccountAndMonth(acc.id, monthStr);
     }
 
-    // Préstamos dinámicos
-    const loans = loanAccounts.map((acc) => ({
-      account_id: acc.id,
-      name: acc.name,
-      amount: txRepo.sumByAccountAndMonth(acc.id, monthStr),
-    }));
+    // Préstamos dinámicos — proyección con semántica temporal
+    const loans = loanAccounts.map((acc) => {
+      const cp = cpRepo ? cpRepo.findByAccountAndMonth(acc.id, monthStr) : null;
+      const amount = computeLoanProjectionForMonth(acc, monthStr, CURRENT_MONTH, cp);
+      return { account_id: acc.id, name: acc.name, amount };
+    });
     const loansTotal = loans.reduce((s, l) => s + l.amount, 0);
 
     // Only income + purchase count; transfer_* are neutral
