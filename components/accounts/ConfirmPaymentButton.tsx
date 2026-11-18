@@ -2,6 +2,7 @@
 
 import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface ConfirmPaymentButtonProps {
   onClick: () => void;
@@ -26,15 +27,11 @@ export function ConfirmPaymentButton({
       {urgency === "danger" && (
         <span className="absolute -inset-0.5 rounded-full bg-[var(--color-accent)]/50 animate-ping" />
       )}
-      <button
+      <Button
         onClick={onClick}
         className={cn(
-          "relative flex items-center gap-1.5 rounded-full text-xs font-semibold transition-all active:scale-95",
-          // Dark variant (sobre footer charcoal)
-          variant === "dark" && "px-3 py-1.5 bg-[var(--color-accent)] text-white hover:brightness-110 shadow-sm",
-          // Light variant (sobre superficie blanca)
-          variant === "light" && "px-3 py-1.5 bg-[var(--color-accent)] text-white hover:brightness-110 shadow-sm",
-          // Urgency modifier
+          "rounded-full text-xs font-semibold active:scale-95",
+          (variant === "dark" || variant === "light") && "shadow-sm",
           urgency === "danger" && "animate-pulse",
           className
         )}
@@ -47,7 +44,7 @@ export function ConfirmPaymentButton({
           )}
         />
         {label}
-      </button>
+      </Button>
     </span>
   );
 }

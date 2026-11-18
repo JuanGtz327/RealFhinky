@@ -70,8 +70,7 @@ export function QuickActions() {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           transition={{ duration: 0.1 }}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-accent)]
-                     text-white hover:bg-[var(--color-accent)]/90 transition-colors shadow-sm"
+          className="btn-accent flex h-8 w-8 items-center justify-center rounded-full shadow-sm"
           aria-label="Acciones rápidas"
         >
           <motion.div

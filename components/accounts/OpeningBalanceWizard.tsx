@@ -200,31 +200,29 @@ export function OpeningBalanceWizard({ accountId, accountName, currentBalance, c
                     <div className="flex gap-1.5 flex-wrap items-center">
                       {MSI_OPTIONS.map((m) =>
                         (!customMsiSet.has(i) && plan.msi_months === m) ? (
-                          <button key={m} type="button"
-                            onClick={() => { setCustomMsi(i, false); updatePlan(i, "msi_months", m); }}
-                            className="px-2.5 py-1 rounded-md text-xs font-medium border transition-colors bg-[var(--color-accent)] text-[var(--color-bg)] border-[var(--color-accent)]">
+                          <Button key={m} type="button" variant="default"
+                            onClick={() => { setCustomMsi(i, false); updatePlan(i, "msi_months", m); }}>
                             {m}
-                          </button>
+                          </Button>
                         ) : (
-                          <button key={m} type="button"
+                          <Button key={m} type="button" variant="outline"
                             onClick={() => { setCustomMsi(i, false); updatePlan(i, "msi_months", m); }}
-                            className="px-2.5 py-1 rounded-md text-xs font-medium border transition-colors border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-accent)]/50">
+                            className="text-[var(--color-muted)]">
                             {m}
-                          </button>
+                          </Button>
                         )
                       )}
                       {customMsiSet.has(i) ? (
-                        <button type="button"
-                          onClick={() => setCustomMsi(i, true)}
-                          className="px-2.5 py-1 rounded-md text-xs font-medium border transition-colors bg-[var(--color-accent)] text-[var(--color-bg)] border-[var(--color-accent)]">
+                        <Button type="button" variant="default"
+                          onClick={() => setCustomMsi(i, true)}>
                           Otro
-                        </button>
+                        </Button>
                       ) : (
-                        <button type="button"
+                        <Button type="button" variant="outline"
                           onClick={() => setCustomMsi(i, true)}
-                          className="px-2.5 py-1 rounded-md text-xs font-medium border transition-colors border-[var(--color-border)] text-[var(--color-muted)] hover:border-[var(--color-accent)]/50">
+                          className="text-[var(--color-muted)]">
                           Otro
-                        </button>
+                        </Button>
                       )}
                     </div>
                     {customMsiSet.has(i) && (

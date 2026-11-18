@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { NewRecurringChargeModal } from "@/components/subscriptions/NewRecurringChargeModal";
 import type { Account } from "@/lib/types";
+import { Button } from "@/components/ui/button";
 
 interface NewChargeButtonProps {
   accounts: Account[];
@@ -14,13 +15,10 @@ export function NewChargeButton({ accounts }: NewChargeButtonProps) {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:brightness-95 transition-all"
-      >
+      <Button onClick={() => setOpen(true)}>
         <Plus className="w-4 h-4" />
         Nueva suscripción
-      </button>
+      </Button>
 
       <NewRecurringChargeModal
         open={open}

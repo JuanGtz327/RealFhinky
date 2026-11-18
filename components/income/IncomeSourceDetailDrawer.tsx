@@ -108,8 +108,7 @@ export function IncomeSourceDetailDrawer({ open, onOpenChange, source, entries, 
                       </span>
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="h-7 text-xs shrink-0"
+                        className="text-xs shrink-0"
                         onClick={() => setConfirmSlot(slot)}
                       >
                         Confirmar
@@ -122,8 +121,7 @@ export function IncomeSourceDetailDrawer({ open, onOpenChange, source, entries, 
                       </span>
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="h-7 text-xs shrink-0"
+                        className="text-xs shrink-0"
                         disabled
                       >
                         Confirmar

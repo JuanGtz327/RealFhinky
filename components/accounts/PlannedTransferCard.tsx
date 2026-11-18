@@ -23,9 +23,10 @@ interface PlannedTransferCardProps {
   transfer: PlannedTransfer;
   currentMonth: string;
   entries: PlannedTransferEntry[];
+  className?: string;
 }
 
-export function PlannedTransferCard({ transfer, currentMonth, entries }: PlannedTransferCardProps) {
+export function PlannedTransferCard({ transfer, currentMonth, entries, className }: PlannedTransferCardProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -55,14 +56,17 @@ export function PlannedTransferCard({ transfer, currentMonth, entries }: Planned
     <>
       <div
         onClick={() => setConfirmOpen(true)}
-        className="rounded-xl border border-[var(--color-border)] card-elevated card-lift flex flex-col gap-3 p-4 cursor-pointer"
+        className={`rounded-xl border border-[var(--color-border)] card-elevated card-lift flex flex-col gap-3 p-4 cursor-pointer${className ? ` ${className}` : ""}`}
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${isIn ? "bg-[var(--color-success)]/10" : "bg-[var(--color-accent)]/10"}`}>
+            <div
+              className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
+              style={{ background: "rgba(232,100,60,0.12)" }}
+            >
               {isIn
-                ? <ArrowDownLeft className="w-4 h-4 text-[var(--color-success)]" />
+                ? <ArrowDownLeft className="w-4 h-4 text-[var(--color-accent)]" />
                 : <ArrowUpRight className="w-4 h-4 text-[var(--color-accent)]" />
               }
             </div>
@@ -72,10 +76,10 @@ export function PlannedTransferCard({ transfer, currentMonth, entries }: Planned
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
-            <StatusBadge variant="muted">{FREQ_LABELS[transfer.frequency] ?? transfer.frequency}</StatusBadge>
+            <StatusBadge variant="accent">{FREQ_LABELS[transfer.frequency] ?? transfer.frequency}</StatusBadge>
             <button
               onClick={(e) => { e.stopPropagation(); setEditOpen(true); }}
-              className="p-1 rounded hover:bg-[var(--color-bg)] text-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors"
+              className="p-1 rounded text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-white transition-colors"
               title="Editar"
             >
               <Pencil className="w-3.5 h-3.5" />
@@ -83,7 +87,7 @@ export function PlannedTransferCard({ transfer, currentMonth, entries }: Planned
             <button
               onClick={handleDelete}
               disabled={deleting}
-              className="p-1 rounded hover:bg-[var(--color-bg)] text-[var(--color-muted)] hover:text-[var(--color-danger)] transition-colors disabled:opacity-50"
+              className="p-1 rounded text-[var(--color-accent)] hover:bg-[var(--color-accent)] hover:text-white transition-colors disabled:opacity-50"
               title="Eliminar"
             >
               <Trash2 className="w-3.5 h-3.5" />

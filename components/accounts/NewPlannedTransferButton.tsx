@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { NewPlannedTransferModal } from "@/components/accounts/NewPlannedTransferModal";
+import { Button } from "@/components/ui/button";
 
 interface NewPlannedTransferButtonProps {
   accountId: string;
@@ -15,13 +16,10 @@ export function NewPlannedTransferButton({ accountId, direction, label }: NewPla
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:brightness-95 transition-all"
-      >
+      <Button onClick={() => setOpen(true)}>
         <Plus className="w-3.5 h-3.5" />
         {label ?? "Nueva transferencia"}
-      </button>
+      </Button>
 
       <NewPlannedTransferModal
         open={open}

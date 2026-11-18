@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Plus, ArrowRight, Lightbulb } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 
 interface AccountBase {
   id: string;
@@ -110,7 +111,7 @@ export function AccountCardGrid<T extends AccountBase>({
                 </p>
               </div>
               <Link href={addNewHref}
-                className="shrink-0 flex items-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white text-xs font-semibold hover:brightness-95 transition-all">
+                className={cn(buttonVariants(), "shrink-0 gap-2")}>
                 <Plus className="w-3.5 h-3.5" />
                 Nueva cuenta
               </Link>

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function YearSelector({ year }: { year: number }) {
   const router = useRouter();
@@ -14,17 +15,15 @@ export function YearSelector({ year }: { year: number }) {
 
   return (
     <div className="flex items-center gap-1">
-      <button onClick={() => go(year - 1)}
-        className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--color-accent)] text-white hover:brightness-95 transition-all">
+      <Button size="icon" onClick={() => go(year - 1)}>
         <ChevronLeft className="w-4 h-4" />
-      </button>
+      </Button>
       <span className="px-4 py-1.5 rounded-md border border-[var(--color-accent)] text-sm font-semibold text-[var(--color-accent)] min-w-[72px] text-center">
         {year}
       </span>
-      <button onClick={() => go(year + 1)}
-        className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--color-accent)] text-white hover:brightness-95 transition-all">
+      <Button size="icon" onClick={() => go(year + 1)}>
         <ChevronRight className="w-4 h-4" />
-      </button>
+      </Button>
     </div>
   );
 }

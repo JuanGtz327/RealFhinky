@@ -4,6 +4,7 @@ import { useState } from "react";
 import { formatMXN, formatMonthLabel } from "@/lib/utils/formatters";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ChevronLeft, ChevronRight, Scissors, CalendarRange, ShoppingBag, ArrowDownLeft, Tag, CheckCircle2, AlertCircle, Undo2, Repeat } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { computePaymentStatus } from "@/lib/domain/payments";
 import { ConfirmPaymentDialog } from "@/components/accounts/ConfirmPaymentDialog";
 import { ConfirmPaymentButton } from "@/components/accounts/ConfirmPaymentButton";
@@ -83,60 +84,63 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }:
 
   return (
     <div className="flex flex-col rounded-lg border border-[var(--color-border)] overflow-hidden h-[560px]">
-      {/* Header con navegación */}
-      <div className="px-3 h-[76px] flex flex-col justify-between py-3 shrink-0 bg-[var(--color-navbar)]">
-        {/* Fila 1: navegación */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIdx((i) => Math.max(0, i - 1))}
-            disabled={idx === 0}
-            className="p-1 rounded-md bg-[var(--color-accent)] text-white disabled:opacity-25 hover:brightness-95 transition-all shrink-0"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-          </button>
+      {/* Header — h-[76px] espejo del card MSI */}
+      <div className="px-4 h-[76px] flex items-stretch py-3 gap-3 shrink-0 bg-[var(--color-navbar)]">
 
-          <div className="flex-1 flex items-center justify-center gap-2 min-w-0">
-            <h3 className="text-sm font-semibold text-white truncate flex items-center gap-1.5">
-              <Scissors className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" />
+        {/* Columna izquierda: navegación < mes > + estado centrado */}
+        <div className="flex flex-col justify-between items-center w-[240px] shrink-0">
+          <div className="flex items-center gap-1">
+            <Button size="icon-sm" onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0} className="disabled:opacity-25">
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </Button>
+            <span className="text-sm font-semibold text-white whitespace-nowrap px-1.5">
               {formatMonthLabel(cycle.cycleMonth)}
-            </h3>
+            </span>
+            <Button size="icon-sm" onClick={() => setIdx((i) => Math.min(cycles.length - 1, i + 1))} disabled={idx === cycles.length - 1} className="disabled:opacity-25">
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
             {cycle.isCurrent && <StatusBadge variant="accent">Actual</StatusBadge>}
             {isPast   && <StatusBadge variant="muted">Pasado</StatusBadge>}
             {isFuture && <StatusBadge variant="ok">Futuro</StatusBadge>}
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {cutDate && (
-              <span className="text-xs text-white/50">Día {cutDate}</span>
+            {idx !== defaultIndex && (
+              <button
+                onClick={() => setIdx(defaultIndex)}
+                className="flex items-center gap-0.5 text-[10px] text-[var(--color-accent)] hover:text-white transition-colors leading-none"
+              >
+                <Undo2 className="w-2.5 h-2.5" />
+                Hoy
+              </button>
             )}
-            <button
-              onClick={() => setIdx((i) => Math.min(cycles.length - 1, i + 1))}
-              disabled={idx === cycles.length - 1}
-              className="p-1 rounded-md bg-[var(--color-accent)] text-white disabled:opacity-25 hover:brightness-95 transition-all"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
           </div>
         </div>
 
-        {/* Fila 2: sub-info + total */}
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-white/40">
+        {/* Separador */}
+        <div className="w-px bg-white/10 shrink-0 my-0.5" />
+
+        {/* Columna derecha: (label+monto junto a botón) / sub-info */}
+        <div className="flex-1 flex flex-col justify-between min-w-0">
+          {/* Fila 1: KPI a la izquierda, acción a la derecha — alineados por el alto del botón */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-wide text-white/50 leading-none mb-0.5">{footerLabel}</p>
+              <span className="font-mono font-semibold text-[var(--color-accent)] leading-none">{formatMXN(total)}</span>
+            </div>
+            {canConfirm && (
+              <ConfirmPaymentButton onClick={() => setDialogOpen(true)} variant="dark" className="shrink-0" />
+            )}
+          </div>
+          {/* Fila 2: sub-info */}
+          <p className="text-xs text-white/40 leading-none">
             {cycle.msiItems.length} MSI · {cycle.directItems.length} compras
+            {cutDate && <span className="text-white/30"> · día {cutDate}</span>}
             {(cycle.creditItems ?? []).length > 0 && (
-              <span className="text-[var(--color-success)]/70"> · −{formatMXN(credits)} en abonos</span>
+              <span className="text-[var(--color-success)]/70"> · −{formatMXN(credits)}</span>
             )}
           </p>
-          <div className="flex items-center gap-2 shrink-0">
-            {canConfirm && (
-              <ConfirmPaymentButton onClick={() => setDialogOpen(true)} variant="dark" />
-            )}
-            <div className="text-right">
-              <p className="text-[10px] uppercase tracking-wide text-white/50">{footerLabel}</p>
-              <span className="font-mono font-semibold text-[var(--color-accent)]">{formatMXN(total)}</span>
-            </div>
-          </div>
         </div>
+
       </div>
 
       {/* Items */}

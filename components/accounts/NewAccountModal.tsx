@@ -4,22 +4,16 @@ import { useState } from "react";
 import { Plus, Landmark } from "lucide-react";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { AccountForm } from "@/components/accounts/AccountForm";
-import { motion } from "motion/react";
+import { Button } from "@/components/ui/button";
 
 export function NewAccountModal() {
   const [open, setOpen] = useState(false);
 
   return (
     <>
-      <motion.button
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.97 }}
-        transition={{ duration: 0.1 }}
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--color-accent)] text-[var(--color-bg)] text-sm font-medium hover:opacity-90 transition-opacity"
-      >
+      <Button onClick={() => setOpen(true)}>
         <Plus className="w-4 h-4" /> Nueva cuenta
-      </motion.button>
+      </Button>
 
       <FormDialog
         open={open}

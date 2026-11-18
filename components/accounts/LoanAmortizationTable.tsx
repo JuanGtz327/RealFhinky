@@ -3,6 +3,7 @@
 import { formatMXN } from "@/lib/utils/formatters";
 import type { AmortizationRow } from "@/lib/domain/types";
 import { Check, Clock, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   rows: AmortizationRow[];
@@ -77,12 +78,9 @@ export function LoanAmortizationTable({ rows, onConfirmPayment, paymentDueDate }
                     </span>
                   ) : row.isCurrent ? (
                     onConfirmPayment ? (
-                      <button
-                        onClick={() => onConfirmPayment(row.month)}
-                        className="text-xs px-2 py-0.5 rounded bg-[var(--color-accent)] text-white hover:brightness-95"
-                      >
+                      <Button onClick={() => onConfirmPayment(row.month)}>
                         Confirmar
-                      </button>
+                      </Button>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[var(--color-warning)] text-xs">
                         <Clock className="w-3 h-3" /> Pendiente

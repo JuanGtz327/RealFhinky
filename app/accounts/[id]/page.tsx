@@ -27,10 +27,12 @@ import { PlannedTransferCard } from "@/components/accounts/PlannedTransferCard";
 import { NewPlannedTransferButton } from "@/components/accounts/NewPlannedTransferButton";
 
 import Link from "next/link";
-import { Pencil, ChevronLeft, ChevronRight, CreditCard, CalendarRange, BarChart2, ArrowUpDown, AlertTriangle, ArrowLeft } from "lucide-react";
+import { Pencil, ChevronLeft, ChevronRight, CreditCard, CalendarRange, BarChart2, ArrowUpDown, AlertTriangle, ArrowLeft, Lightbulb, ArrowDownLeft, ArrowUpRight, ShoppingCart } from "lucide-react";
 import { SectionTitle } from "@/components/ui/section-title";
 import { PageHeader } from "@/components/ui/page-header";
 import { FadeIn } from "@/components/ui/animated";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const REAL_YEAR   = new Date().getFullYear();
 const MONTHS = ["01","02","03","04","05","06","07","08","09","10","11","12"];
@@ -284,7 +286,7 @@ export default function AccountDetailPage({
           subtitle={`${account.bank}${account.last4 ? ` · ···${account.last4}` : ""}`}
           action={
             <Link href={`/accounts/${account.id}/edit`}
-              className="flex items-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white text-sm font-medium rounded-lg hover:brightness-95 transition-all">
+              className={cn(buttonVariants(), "gap-2 rounded-lg")}>
               <Pencil className="w-3.5 h-3.5" /> Editar
             </Link>
           }
@@ -423,99 +425,206 @@ export default function AccountDetailPage({
             Transferencias planificadas
           </SectionTitle>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Abonos planificados (direction=in) */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-success)]">Abonos planificados</p>
-                <NewPlannedTransferButton accountId={account.id} direction="in" label="Nuevo abono" />
-              </div>
-              {accountTransfers.filter((t) => t.direction === "in").length === 0 ? (
-                <div className="flex items-center justify-center py-6 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)]">
-                  <p className="text-xs text-[var(--color-muted)]">Sin abonos planificados</p>
+            {(() => {
+              const inTransfers = accountTransfers.filter((t) => t.direction === "in");
+              return (
+                <div className="flex flex-col h-full rounded-lg border border-[var(--color-border)] overflow-hidden">
+                  <div className="px-4 py-3 flex items-center justify-between gap-2 bg-[var(--color-navbar)]">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                        <ArrowUpDown className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0 rotate-90" />
+                        Abonos planificados
+                      </h3>
+                      <p className="text-xs text-white/40 mt-0.5">{inTransfers.length} activos</p>
+                    </div>
+                    <NewPlannedTransferButton accountId={account.id} direction="in" label="Nuevo abono" />
+                  </div>
+                  {inTransfers.length === 0 ? (
+                    <div className="flex-1 flex items-center gap-4 py-7 px-5 bg-[var(--color-surface)]" style={{ borderLeft: "4px solid var(--color-accent)" }}>
+                      <Lightbulb className="w-8 h-8 shrink-0 text-[var(--color-accent)]" />
+                      <div>
+                        <p className="text-sm font-medium text-[var(--color-foreground)]">Sin abonos planificados</p>
+                        <p className="text-xs text-[var(--color-muted)] mt-1">
+                          Registra pagos que esperas recibir: reembolsos, transferencias de otra cuenta o depósitos periódicos.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[var(--color-border)] overflow-y-auto max-h-[320px] bg-[var(--color-surface)]">
+                      {inTransfers.map((transfer) => (
+                        <PlannedTransferCard
+                          key={transfer.id}
+                          transfer={transfer}
+                          currentMonth={currentMonth}
+                          entries={ptEntriesMap.get(transfer.id) ?? []}
+                          className="rounded-none border-0"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {accountTransfers.filter((t) => t.direction === "in").map((transfer) => (
-                    <PlannedTransferCard
-                      key={transfer.id}
-                      transfer={transfer}
-                      currentMonth={currentMonth}
-                      entries={ptEntriesMap.get(transfer.id) ?? []}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Salidas planificadas (direction=out) */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-accent)]">Salidas planificadas</p>
-                <NewPlannedTransferButton accountId={account.id} direction="out" label="Nueva salida" />
-              </div>
-              {accountTransfers.filter((t) => t.direction === "out").length === 0 ? (
-                <div className="flex items-center justify-center py-6 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)]">
-                  <p className="text-xs text-[var(--color-muted)]">Sin salidas planificadas</p>
+            {(() => {
+              const outTransfers = accountTransfers.filter((t) => t.direction === "out");
+              return (
+                <div className="flex flex-col h-full rounded-lg border border-[var(--color-border)] overflow-hidden">
+                  <div className="px-4 py-3 flex items-center justify-between gap-2 bg-[var(--color-navbar)]">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                        <ArrowUpDown className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" />
+                        Salidas planificadas
+                      </h3>
+                      <p className="text-xs text-white/40 mt-0.5">{outTransfers.length} activas</p>
+                    </div>
+                    <NewPlannedTransferButton accountId={account.id} direction="out" label="Nueva salida" />
+                  </div>
+                  {outTransfers.length === 0 ? (
+                    <div className="flex-1 flex items-center gap-4 py-7 px-5 bg-[var(--color-surface)]" style={{ borderLeft: "4px solid var(--color-accent)" }}>
+                      <Lightbulb className="w-8 h-8 shrink-0 text-[var(--color-accent)]" />
+                      <div>
+                        <p className="text-sm font-medium text-[var(--color-foreground)]">Sin salidas planificadas</p>
+                        <p className="text-xs text-[var(--color-muted)] mt-1">
+                          Registra transferencias que planeas enviar: pagos a otras cuentas, ahorros programados o envíos recurrentes.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-[var(--color-border)] overflow-y-auto max-h-[320px] bg-[var(--color-surface)]">
+                      {outTransfers.map((transfer) => (
+                        <PlannedTransferCard
+                          key={transfer.id}
+                          transfer={transfer}
+                          currentMonth={currentMonth}
+                          entries={ptEntriesMap.get(transfer.id) ?? []}
+                          className="rounded-none border-0"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {accountTransfers.filter((t) => t.direction === "out").map((transfer) => (
-                    <PlannedTransferCard
-                      key={transfer.id}
-                      transfer={transfer}
-                      currentMonth={currentMonth}
-                      entries={ptEntriesMap.get(transfer.id) ?? []}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
         </section>
       )}
 
-      {/* Tabla mes a mes */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-3">
-          <SectionTitle>
-            <BarChart2 className="w-4 h-4 text-[var(--color-accent)]" />
-            Movimientos por mes — {selectedYear}
-          </SectionTitle>
-          <div className="flex items-center gap-1 ml-auto">
-            <Link href={`?year=${selectedYear - 1}`}
-              className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--color-accent)] text-white hover:brightness-95 transition-all">
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </Link>
-            {selectedYear !== REAL_YEAR && (
-              <Link href={`?year=${REAL_YEAR}`}
-                className="px-2 py-0.5 text-xs rounded hover:bg-[var(--color-border)] text-[var(--color-accent)] transition-colors">
-                hoy
+      {/* Tabla mes a mes + Transacciones — 2 columnas en débito, apiladas en crédito/préstamo */}
+      <div className={isDebit ? "grid grid-cols-1 lg:grid-cols-2 gap-6" : "space-y-8"}>
+        {/* Movimientos por mes */}
+        <section className="space-y-3">
+          <div className="flex items-center gap-3">
+            <SectionTitle>
+              <BarChart2 className="w-4 h-4 text-[var(--color-accent)]" />
+              Movimientos por mes — {selectedYear}
+            </SectionTitle>
+            <div className="flex items-center gap-1 ml-auto">
+              <Link href={`?year=${selectedYear - 1}`}
+                className={buttonVariants({ size: "icon-sm" })}>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </Link>
+              {selectedYear !== REAL_YEAR && (
+                <Link href={`?year=${REAL_YEAR}`}
+                  className="px-2 py-0.5 text-xs rounded hover:bg-[var(--color-border)] text-[var(--color-accent)] transition-colors">
+                  hoy
+                </Link>
+              )}
+              <Link href={`?year=${selectedYear + 1}`}
+                className={buttonVariants({ size: "icon-sm" })}>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+          <AccountMonthlyTable rows={monthlyRows} isCredit={isCredit} />
+        </section>
+
+        {/* Transacciones recientes */}
+        <section className={isDebit ? "flex flex-col h-full space-y-3" : "space-y-3"}>
+          <div className="flex items-center justify-between shrink-0 h-7">
+            <SectionTitle>
+              <ArrowUpDown className="w-4 h-4 text-[var(--color-accent)]" />
+              Transacciones recientes
+            </SectionTitle>
+            {!isDebit && (
+              <Link href={`/transactions?account_id=${account.id}`}
+                className="text-sm text-[var(--color-accent)] hover:underline">
+                Ver todas
               </Link>
             )}
-            <Link href={`?year=${selectedYear + 1}`}
-              className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--color-accent)] text-white hover:brightness-95 transition-all">
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
           </div>
-        </div>
-        <AccountMonthlyTable rows={monthlyRows} isCredit={isCredit} />
-      </section>
+          {isDebit ? (
+            <div className="flex-1 min-h-0 flex flex-col rounded-lg border border-[var(--color-border)] overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 shrink-0 bg-[var(--color-navbar)]">
+                <span className="text-xs font-semibold uppercase tracking-wider text-white/60">Recientes</span>
+                <Link href={`/transactions?account_id=${account.id}`}
+                  className="text-xs text-[var(--color-accent)] hover:underline">
+                  Ver todas
+                </Link>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto bg-[var(--color-surface)]">
+                {recentTx.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 h-full py-16 px-6 text-center">
+                    <Lightbulb className="w-8 h-8 text-[var(--color-accent)]" />
+                    <div>
+                      <p className="text-sm font-medium text-[var(--color-foreground)]">Sin transacciones aún</p>
+                      <p className="text-xs text-[var(--color-muted)] mt-1">
+                        Registra ingresos, gastos o transferencias para ver el historial de movimientos de esta cuenta.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[var(--color-border)]">
+                    {recentTx.map((tx) => {
+                      const isIncome   = tx.type === "income" || tx.type === "transfer_in";
+                      const isTransfer = tx.type === "transfer_out";
+                      const isMsi      = tx.is_msi;
+                      const name       = tx.merchant ?? tx.description ?? "—";
 
-      {/* Transacciones recientes */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <SectionTitle>
-            <ArrowUpDown className="w-4 h-4 text-[var(--color-accent)]" />
-            Transacciones recientes
-          </SectionTitle>
-          <Link href={`/transactions?account_id=${account.id}`}
-            className="text-sm text-[var(--color-accent)] hover:underline">
-            Ver todas
-          </Link>
-        </div>
-        <AccountTransactions transactions={recentTx} />
-      </section>
+                      return (
+                        <div key={tx.id} className={`flex items-center justify-between gap-4 px-4 py-3 ${isIncome ? "bg-[var(--color-success)]/5" : ""}`}>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              {isIncome
+                                ? <ArrowDownLeft className="w-3.5 h-3.5 text-[var(--color-success)] shrink-0" />
+                                : isTransfer
+                                ? <ArrowUpRight className="w-3.5 h-3.5 text-[var(--color-muted)] shrink-0" />
+                                : isMsi
+                                ? <CalendarRange className="w-3.5 h-3.5 text-[var(--color-accent)]/60 shrink-0" />
+                                : <ShoppingCart className="w-3.5 h-3.5 text-[var(--color-muted)] shrink-0" />
+                              }
+                              <p className="text-sm font-medium text-[var(--color-foreground)] truncate">{name}</p>
+                            </div>
+                            <p className="text-xs text-[var(--color-muted)] mt-0.5 pl-5">
+                              {tx.date}{tx.category ? ` · ${tx.category}` : ""}
+                            </p>
+                          </div>
+                          {isMsi
+                            ? <StatusBadge variant="msi">{tx.msi_months} MSI</StatusBadge>
+                            : isIncome
+                            ? <StatusBadge variant="ok">Ingreso</StatusBadge>
+                            : isTransfer
+                            ? <StatusBadge variant="muted">Transferencia</StatusBadge>
+                            : <StatusBadge variant="accent">Compra</StatusBadge>
+                          }
+                          <p className={`font-mono text-sm shrink-0 w-24 text-right ${isIncome ? "text-[var(--color-success)]" : "text-[var(--color-foreground)]"}`}>
+                            {isIncome ? "+" : ""}{formatMXN(tx.amount)}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <AccountTransactions transactions={recentTx} />
+          )}
+        </section>
+      </div>
 
     </div>
   );

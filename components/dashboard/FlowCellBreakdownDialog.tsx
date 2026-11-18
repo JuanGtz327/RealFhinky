@@ -1,6 +1,7 @@
 "use client";
 
 import { FormDialog } from "@/components/ui/form-dialog";
+import { Button } from "@/components/ui/button";
 import { formatMXN, formatMonthLabel, formatDate } from "@/lib/utils/formatters";
 import { CheckCircle2, Circle, Repeat, ArrowDownLeft, ArrowUpRight, TrendingUp, BarChart3 } from "lucide-react";
 import { useState } from "react";
@@ -310,13 +311,9 @@ function GastosContent({ row, isCurrent }: { row: FlowRow; isCurrent: boolean })
             onKeyDown={(e) => { if (e.key === "Enter") addOtroGasto(); if (e.key === "Escape") setShowAddForm(false); }}
             className="w-24 h-7 text-right text-sm font-mono border border-[var(--color-border)] rounded px-2 bg-[var(--color-bg)] text-[var(--color-foreground)] focus:outline-none focus:border-[var(--color-accent)]"
           />
-          <button
-            onClick={addOtroGasto}
-            disabled={savingOtros}
-            className="h-7 px-2 text-xs rounded bg-[var(--color-accent)] text-white disabled:opacity-50"
-          >
+          <Button onClick={addOtroGasto} disabled={savingOtros}>
             ✓
-          </button>
+          </Button>
           <button
             onClick={() => { setShowAddForm(false); setNewDesc(""); setNewAmount(""); }}
             className="h-7 px-2 text-xs rounded border border-[var(--color-border)] text-[var(--color-muted)]"
