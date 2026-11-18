@@ -1,6 +1,6 @@
 import { formatMXN } from "@/lib/utils/formatters";
 import { Landmark, TrendingUp } from "lucide-react";
-import { AccountCardGrid, SummaryCard } from "./AccountCardGrid";
+import { AccountCardGrid } from "./AccountCardGrid";
 
 interface DebitAccount {
   id: string;
@@ -22,23 +22,7 @@ export function DebitTable({ accounts, totals }: DebitCardsProps) {
     <AccountCardGrid
       accounts={accounts}
       columns={2}
-      summaryCard={
-        <SummaryCard label="Total patrimonio">
-          <div className="flex items-baseline justify-between gap-4">
-            <p className="text-2xl font-bold text-[var(--color-foreground)] tabular-nums">{formatMXN(totals.capital)}</p>
-            <div className="flex gap-4 shrink-0">
-              <div className="flex flex-col items-end">
-                <span className="text-xs text-[var(--color-muted)]">Anual</span>
-                <span className="text-sm font-semibold text-[var(--color-foreground)]">{formatMXN(totals.annual_projection)}</span>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="text-xs text-[var(--color-muted)]">Diario</span>
-                <span className="text-sm font-semibold text-[var(--color-foreground)]">{formatMXN(totals.daily_projection)}/día</span>
-              </div>
-            </div>
-          </div>
-        </SummaryCard>
-      }
+      viewAllHref="/accounts"
       getIcon={(acc) =>
         acc.yield_rate > 0
           ? <TrendingUp className="w-3.5 h-3.5 text-[var(--color-accent)]" />

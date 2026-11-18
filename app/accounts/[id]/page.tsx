@@ -270,19 +270,19 @@ export default function AccountDetailPage({
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between bg-[var(--color-navbar)] px-6 py-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold text-[var(--color-foreground)]">{account.name}</h1>
+            <h1 className="text-2xl font-semibold text-white">{account.name}</h1>
             <StatusBadge variant="muted">{account.bank}</StatusBadge>
             {account.last4 && (
-              <span className="text-sm text-[var(--color-muted)] font-mono">···{account.last4}</span>
+              <span className="text-sm text-white/50 font-mono">···{account.last4}</span>
             )}
           </div>
-          <p className="text-sm text-[var(--color-muted)] mt-0.5 capitalize">{account.type}</p>
+          <p className="text-sm text-white/50 mt-0.5 capitalize">{account.type}</p>
         </div>
         <Link href={`/accounts/${account.id}/edit`}
-          className="flex items-center gap-2 px-4 py-2 rounded-md bg-[var(--color-accent)] text-white text-sm font-medium hover:brightness-95 transition-all">
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white text-sm font-medium hover:brightness-95 transition-all">
           <Pencil className="w-3.5 h-3.5" /> Editar
         </Link>
       </div>

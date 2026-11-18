@@ -69,7 +69,9 @@ export default function DashboardPage() {
 
   // ── KPIs rápidos ─────────────────────────────────────────────
   const currentFlowRow  = flowRows.find((r) => r.month === CURRENT_MONTH);
-  const totalDeudaTarjetas = allCredit.reduce((s, a) => s + a.current_balance, 0);
+  const totalDeudaTarjetas  = allCredit.reduce((s, a) => s + a.current_balance, 0);
+  const totalCreditLimit    = allCredit.reduce((s, a) => s + a.credit_limit, 0);
+  const totalCreditFree     = allCredit.reduce((s, a) => s + a.available, 0);
   const totalDeudaPrestamos = loanAccounts.reduce((s, a) => s + a.current_balance, 0);
   const totalDeuda = totalDeudaTarjetas + totalDeudaPrestamos;
   const totalCapital    = debitTotals.capital;
@@ -142,37 +144,118 @@ export default function DashboardPage() {
       {/* Débito + Crédito en 2 columnas */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-navbar)]">
-            <Landmark className="w-4 h-4 text-[var(--color-navbar)]" /> Cuentas Débito
-          </h2>
+          <div className="flex items-center justify-between bg-[var(--color-navbar)] px-5 py-3">
+            <div className="flex items-center gap-2">
+              <Landmark className="w-4 h-4 text-white/70" />
+              <h2 className="text-sm font-semibold text-white">Cuentas Débito</h2>
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <p className="text-xs text-white/40 uppercase tracking-wide">Capital</p>
+                <p className="text-sm font-semibold text-white tabular-nums">{formatMXN(debitTotals.capital)}</p>
+              </div>
+              {debitTotals.annual_projection > 0 && (
+                <div className="text-right">
+                  <p className="text-xs text-white/40 uppercase tracking-wide">Rendimiento anual</p>
+                  <p className="text-sm font-semibold text-white/70 tabular-nums">{formatMXN(debitTotals.annual_projection)}</p>
+                </div>
+              )}
+            </div>
+          </div>
           <DebitTable accounts={allDebit} totals={debitTotals} />
         </section>
 
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-navbar)]">
-            <CreditCard className="w-4 h-4 text-[var(--color-navbar)]" /> Tarjetas de Crédito
-          </h2>
+          <div className="flex items-center justify-between bg-[var(--color-navbar)] px-5 py-3">
+            <div className="flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-white/70" />
+              <h2 className="text-sm font-semibold text-white">Tarjetas de Crédito</h2>
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <p className="text-xs text-white/40 uppercase tracking-wide">Deuda</p>
+                <p className="text-sm font-semibold text-white tabular-nums">{formatMXN(totalDeudaTarjetas)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-white/40 uppercase tracking-wide">Línea</p>
+                <p className="text-sm font-semibold text-white/70 tabular-nums">{formatMXN(totalCreditLimit)}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-white/40 uppercase tracking-wide">Disponible</p>
+                <p className="text-sm font-semibold text-white/70 tabular-nums">{formatMXN(totalCreditFree)}</p>
+              </div>
+            </div>
+          </div>
           <CreditTable accounts={allCredit} />
         </section>
       </div>
 
-      {/* Préstamos */}
-      {loanAccounts.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-navbar)]">
-            <Landmark className="w-4 h-4 text-[var(--color-navbar)]" /> Préstamos
-          </h2>
-          <LoanDebtTable loans={loanAccounts} />
-        </section>
-      )}
+      {/* Préstamos + Ingresos en 2 columnas */}
+      <div className={loanAccounts.length > 0 ? "grid grid-cols-1 gap-6 lg:grid-cols-2" : ""}>
 
-      {/* Alertas de nómina */}
-      <section className="space-y-3">
-        <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-navbar)]">
-          <Wallet className="w-4 h-4 text-[var(--color-navbar)]" /> Ingresos
-        </h2>
-        <IncomeAlertsWidget alerts={incomeOverdue} />
-      </section>
+        {loanAccounts.length > 0 && (() => {
+          const totalLoan = loanAccounts.reduce((s, l) => s + l.current_balance, 0);
+          const totalMensualidad = loanAccounts.reduce((s, l) => s + (l.loan_monthly_payment ?? 0), 0);
+          return (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between bg-[var(--color-navbar)] px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <Landmark className="w-4 h-4 text-white/70" />
+                  <h2 className="text-sm font-semibold text-white">Préstamos</h2>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="text-right">
+                    <p className="text-xs text-white/40 uppercase tracking-wide">Saldo total</p>
+                    <p className="text-sm font-semibold text-white tabular-nums">{formatMXN(totalLoan)}</p>
+                  </div>
+                  {totalMensualidad > 0 && (
+                    <div className="text-right">
+                      <p className="text-xs text-white/40 uppercase tracking-wide">Mensualidad</p>
+                      <p className="text-sm font-semibold text-white/70 tabular-nums">{formatMXN(totalMensualidad)}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <LoanDebtTable loans={loanAccounts} />
+            </section>
+          );
+        })()}
+
+        {/* Ingresos */}
+        {(() => {
+          const activeSources = incomeSources.filter((s) => s.is_active);
+          const totalMonthly = activeSources.reduce((s, src) => {
+            switch (src.frequency) {
+              case "weekly":   return s + src.base_amount * 4;
+              case "biweekly": return s + src.base_amount * 2;
+              case "monthly":  return s + src.base_amount;
+              case "custom": {
+                const days = src.custom_interval_days;
+                return s + (days && days > 0 ? src.base_amount * Math.round(30 / days) : src.base_amount);
+              }
+              default: return s;
+            }
+          }, 0);
+          return (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between bg-[var(--color-navbar)] px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-white/70" />
+                  <h2 className="text-sm font-semibold text-white">Ingresos</h2>
+                </div>
+                {totalMonthly > 0 && (
+                  <div className="text-right">
+                    <p className="text-xs text-white/40 uppercase tracking-wide">Proyección mensual</p>
+                    <p className="text-sm font-semibold text-white tabular-nums">{formatMXN(totalMonthly)}</p>
+                  </div>
+                )}
+              </div>
+              <IncomeAlertsWidget alerts={incomeOverdue} incomeSources={incomeSources} />
+            </section>
+          );
+        })()}
+
+      </div>
 
     </div>
   );
