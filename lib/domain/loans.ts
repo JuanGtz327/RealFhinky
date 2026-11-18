@@ -210,7 +210,7 @@ export function computeLoanProjectionForMonth(
   }
 
   if (isCurrent) {
-    return cyclePayment ? 0 : monthlyPayment;
+    return cyclePayment ? cyclePayment.amount_paid : monthlyPayment;
   }
 
   // Future

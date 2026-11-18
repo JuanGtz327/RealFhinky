@@ -24,6 +24,7 @@ export interface TarjetaBreakdown {
   bank: string;
   purchases: number;
   msi: number;
+  credits?: number;
   untracked?: number;
   flow_adjustment?: number | null;
   recurringCharges?: number;

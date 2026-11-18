@@ -14,6 +14,7 @@ import { computeUntrackedDebt } from "@/lib/domain/flow-adjustment";
 import { computeEffectiveMonth } from "@/lib/domain/account-detail";
 import { computeLoanProjectionForMonth } from "@/lib/domain/loans";
 import { CyclePaymentsRepository } from "@/lib/repositories/cycle-payments.repo";
+import { PreferencesRepository } from "@/lib/repositories/preferences.repo";
 import { computeBlendedCharge, isChargeInBillingPeriod } from "@/lib/domain/recurring-charges";
 import { computeMonthlyPlannedTransfers, computeBlendedTransfer } from "@/lib/domain/planned-transfers";
 import type { RecurringChargeEntry, PlannedTransferEntry } from "@/lib/types";
@@ -44,13 +45,20 @@ function FlowContent({ year }: { year: string }) {
   const chargeRepo     = new RecurringChargesRepository(db);
   const ptRepo         = new PlannedTransfersRepository(db);
   const cpRepo         = new CyclePaymentsRepository(db);
+  const prefRepo       = new PreferencesRepository(db);
+
+  // Lazy-init: record the month when Finkhy was first used. Used to anchor
+  // capital_fin to the real debit balance only during that month.
+  let onboardingMonth = prefRepo.get("onboarding_month");
+  if (!onboardingMonth) {
+    onboardingMonth = CURRENT_MONTH;
+    prefRepo.set("onboarding_month", CURRENT_MONTH);
+  }
+
   const allCharges     = chargeRepo.findAll();
   const allTransfers   = ptRepo.findAll();
 
   const allAccounts = accRepo.findAll(false);
-  const onboardingMonth = allAccounts.length > 0
-    ? allAccounts.sort((a, b) => a.created_at.localeCompare(b.created_at))[0].created_at.substring(0, 7)
-    : undefined;
 
   const patrimonioActual = debitAccounts.reduce((s, a) => s + a.current_balance, 0);
 
@@ -160,6 +168,7 @@ function FlowContent({ year }: { year: string }) {
     for (const acc of creditAccounts) {
       const { periodStart, periodEnd } = computeBillingPeriod(monthStr, acc.cut_date ?? null);
       const purchases = txRepo.sumPurchasesByPeriod(acc.id, periodStart, periodEnd);
+      const credits   = txRepo.sumCreditsByPeriod(acc.id, periodStart, periodEnd);
       const msi       = msiRepo.sumByAccountAndMonth(acc.id, monthStr);
       let untracked: number | undefined;
       if (isCurrent && year === currentYear) {
@@ -201,8 +210,8 @@ function FlowContent({ year }: { year: string }) {
           recurringChargesDetail.push({ chargeId: ch.id, name: ch.name, amount: amt, confirmed: result.confirmedTotal > 0 });
         }
       }
-      tarjetas += purchases + msi + recurringChargesAmt + (untracked ?? 0) + (flowAdj ?? 0);
-      tarjetasBreakdown.push({ id: acc.id, name: acc.name, bank: acc.bank ?? "", purchases, msi, untracked, flow_adjustment: flowAdj, recurringCharges: recurringChargesAmt, recurringChargesDetail });
+      tarjetas += purchases - credits + msi + recurringChargesAmt + (untracked ?? 0) + (flowAdj ?? 0);
+      tarjetasBreakdown.push({ id: acc.id, name: acc.name, bank: acc.bank ?? "", purchases, msi, credits, untracked, flow_adjustment: flowAdj, recurringCharges: recurringChargesAmt, recurringChargesDetail });
     }
 
     // Planned transfers (debit accounts)
@@ -283,12 +292,17 @@ function FlowContent({ year }: { year: string }) {
     }
 
     let capital_inicio: number;
-    if (isCurrent && year === currentYear) {
-      capital_inicio = patrimonioActual;
+    let capital_fin: number;
+    if (isCurrent && year === currentYear && monthStr === onboardingMonth) {
+      // Onboarding month only: anchor capital_fin to the real debit balance.
+      // We know where the month ends (actual account balances) but not where
+      // it started — pre-onboarding activity isn't tracked in Finkhy.
+      capital_fin    = patrimonioActual;
+      capital_inicio = capital_fin - ingresos_totales + gastos_totales;
     } else {
       capital_inicio = prevCapitalFin ?? 0;
+      capital_fin    = capital_inicio + ingresos_totales - gastos_totales;
     }
-    const capital_fin = capital_inicio + ingresos_totales - gastos_totales;
 
     const hasRegistered   = monthEntries.length > 0;
     const is_projected    = !hasRegistered && (isFuture || isCurrent) && year === currentYear;

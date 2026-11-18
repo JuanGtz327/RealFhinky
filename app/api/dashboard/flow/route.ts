@@ -4,6 +4,7 @@ import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { IncomeRepository } from "@/lib/repositories/income.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
+import { CyclePaymentsRepository } from "@/lib/repositories/cycle-payments.repo";
 import { computeFlowRows } from "@/lib/domain";
 
 export type { FlowRow } from "@/lib/domain";
@@ -17,8 +18,9 @@ export async function GET(req: NextRequest) {
     const txRepo  = new TransactionsRepository(db);
     const incRepo = new IncomeRepository(db);
     const msiRepo = new MsiRepository(db);
+    const cpRepo  = new CyclePaymentsRepository(db);
 
-    const { rows, loanColumns } = computeFlowRows(year, { accRepo, txRepo, incRepo, msiRepo });
+    const { rows, loanColumns } = computeFlowRows(year, { accRepo, txRepo, incRepo, msiRepo, cpRepo });
 
     return NextResponse.json({ year, rows, loan_columns: loanColumns });
   } catch (err) {

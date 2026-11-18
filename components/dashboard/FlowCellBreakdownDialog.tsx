@@ -79,7 +79,7 @@ function GastosContent({ row, isCurrent }: { row: FlowRow; isCurrent: boolean })
   const router = useRouter();
   const breakdown = row.tarjetasBreakdown ?? [];
   const cardTotal = (c: typeof breakdown[number]) =>
-    c.purchases + c.msi + (c.untracked ?? 0) + (c.flow_adjustment ?? 0) + (c.recurringCharges ?? 0);
+    c.purchases - (c.credits ?? 0) + c.msi + (c.untracked ?? 0) + (c.flow_adjustment ?? 0) + (c.recurringCharges ?? 0);
   const activeCards = breakdown.filter((c) => cardTotal(c) > 0 || isCurrent);
   const tarjetasTotal = breakdown.reduce((s, c) => s + cardTotal(c), 0);
   const loansTotal = row.loans.reduce((s, l) => s + l.amount, 0);
@@ -154,7 +154,7 @@ function GastosContent({ row, isCurrent }: { row: FlowRow; isCurrent: boolean })
       ) : (
         activeCards.map((card) => {
           const adj = parseFloat(adjustments[card.id] || "0") || 0;
-          const cardTotal = card.purchases + card.msi + (card.untracked ?? 0) + (card.recurringCharges ?? 0) + adj;
+          const cardTotal = card.purchases - (card.credits ?? 0) + card.msi + (card.untracked ?? 0) + (card.recurringCharges ?? 0) + adj;
           return (
             <div key={card.id} className="pt-2 pb-1">
               <p className="text-sm font-medium text-[var(--color-foreground)] mb-1">
@@ -163,6 +163,13 @@ function GastosContent({ row, isCurrent }: { row: FlowRow; isCurrent: boolean })
               </p>
               {card.purchases > 0 && (
                 <InfoRow label="Compras directas" value={formatMXN(card.purchases)} />
+              )}
+              {(card.credits ?? 0) > 0 && (
+                <InfoRow
+                  label="Abonos / Devoluciones"
+                  value={`−${formatMXN(card.credits!)}`}
+                  valueClass="text-[var(--color-success)]"
+                />
               )}
               {card.msi > 0 && (
                 <InfoRow label="Cuotas MSI" value={formatMXN(card.msi)} />
