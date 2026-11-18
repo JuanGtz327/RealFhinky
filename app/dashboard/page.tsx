@@ -11,7 +11,8 @@ import { DebitTable } from "@/components/dashboard/DebitTable";
 import { CreditTable } from "@/components/dashboard/CreditTable";
 import { LoanDebtTable } from "@/components/dashboard/LoanDebtTable";
 import { KPICard } from "@/components/ui/kpi-card";
-import { FadeIn, StaggerGrid } from "@/components/ui/animated";
+import { StaggerGrid } from "@/components/ui/animated";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Wallet, TrendingDown, ArrowUpCircle, ArrowDownCircle,
   BarChart3, CreditCard, Landmark, ChevronRight,
@@ -81,10 +82,11 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <FadeIn>
-        <h1 className="text-2xl font-semibold text-[var(--color-foreground)]">Dashboard</h1>
-        <p className="text-sm text-[var(--color-muted)] mt-0.5">Resumen financiero — {CURRENT_YEAR}</p>
-      </FadeIn>
+      <PageHeader
+        eyebrow="Finanzas"
+        title="Panel"
+        subtitle={`Resumen financiero — ${CURRENT_YEAR}`}
+      />
 
       {/* KPIs */}
       <StaggerGrid className="grid grid-cols-2 gap-4 lg:grid-cols-4" staggerDelay={0.07}>
@@ -146,7 +148,7 @@ export default function DashboardPage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between bg-[var(--color-navbar)] px-5 py-3">
             <div className="flex items-center gap-2">
-              <Landmark className="w-4 h-4 text-white/70" />
+              <Landmark className="w-4 h-4 text-[var(--color-accent)]" />
               <h2 className="text-sm font-semibold text-white">Cuentas Débito</h2>
             </div>
             <div className="flex items-center gap-6">
@@ -168,7 +170,7 @@ export default function DashboardPage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between bg-[var(--color-navbar)] px-5 py-3">
             <div className="flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-white/70" />
+              <CreditCard className="w-4 h-4 text-[var(--color-accent)]" />
               <h2 className="text-sm font-semibold text-white">Tarjetas de Crédito</h2>
             </div>
             <div className="flex items-center gap-6">
@@ -200,7 +202,7 @@ export default function DashboardPage() {
             <section className="space-y-3">
               <div className="flex items-center justify-between bg-[var(--color-navbar)] px-5 py-3">
                 <div className="flex items-center gap-2">
-                  <Landmark className="w-4 h-4 text-white/70" />
+                  <Landmark className="w-4 h-4 text-[var(--color-accent)]" />
                   <h2 className="text-sm font-semibold text-white">Préstamos</h2>
                 </div>
                 <div className="flex items-center gap-6">
@@ -240,7 +242,7 @@ export default function DashboardPage() {
             <section className="space-y-3">
               <div className="flex items-center justify-between bg-[var(--color-navbar)] px-5 py-3">
                 <div className="flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-white/70" />
+                  <Wallet className="w-4 h-4 text-[var(--color-accent)]" />
                   <h2 className="text-sm font-semibold text-white">Ingresos</h2>
                 </div>
                 {totalMonthly > 0 && (

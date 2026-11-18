@@ -22,8 +22,9 @@ import { format } from "date-fns";
 import { MonthlyFlowTable } from "@/components/dashboard/MonthlyFlowTable";
 import { YearSelector } from "@/components/ui/year-selector";
 import { FadeIn } from "@/components/ui/animated";
-import { BarChart3, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { PageHeader } from "@/components/ui/page-header";
 import { Suspense } from "react";
 
 const CURRENT_MONTH = format(new Date(), "yyyy-MM");
@@ -343,22 +344,17 @@ export default function FlowPage({ searchParams }: { searchParams: { year?: stri
   return (
     <div className="space-y-8">
       {/* Header */}
-      <FadeIn>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <Link href="/dashboard"
-              className="flex items-center gap-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-accent)] transition-colors mb-2">
-              <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
-            </Link>
-            <h1 className="flex items-center gap-2 text-2xl font-semibold text-[var(--color-foreground)]">
-              <BarChart3 className="w-6 h-6 text-[var(--color-accent)]" /> Flujo General Mensual
-            </h1>
-            <p className="text-sm text-[var(--color-muted)] mt-0.5">
-              Capital, ingresos y gastos mes a mes
-            </p>
-          </div>
-          <YearSelector year={Number(year)} />
-        </div>
+      <FadeIn className="space-y-2">
+        <Link href="/dashboard"
+          className="flex items-center gap-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-accent)] transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Panel
+        </Link>
+        <PageHeader
+          eyebrow="Panel"
+          title="Flujo General Mensual"
+          subtitle="Capital, ingresos y gastos mes a mes"
+          action={<YearSelector year={Number(year)} />}
+        />
       </FadeIn>
 
       <Suspense fallback={<p className="text-[var(--color-muted)]">Cargando…</p>}>

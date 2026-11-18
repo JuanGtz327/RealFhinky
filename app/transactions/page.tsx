@@ -3,9 +3,10 @@ import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { formatMXN } from "@/lib/utils/formatters";
 import { KPICard } from "@/components/ui/kpi-card";
-import { FadeIn, StaggerGrid } from "@/components/ui/animated";
+import { StaggerGrid } from "@/components/ui/animated";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
 import { NewTransactionModal } from "@/components/transactions/NewTransactionModal";
+import { PageHeader } from "@/components/ui/page-header";
 import { Suspense } from "react";
 
 export default function TransactionsPage() {
@@ -24,13 +25,12 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <FadeIn className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-[var(--color-foreground)]">Transacciones</h1>
-          <p className="text-sm text-[var(--color-muted)] mt-0.5">{transactions.length} registros · todas las cuentas</p>
-        </div>
-        <NewTransactionModal accounts={accounts} />
-      </FadeIn>
+      <PageHeader
+        eyebrow="Movimientos"
+        title="Transacciones"
+        subtitle={`${transactions.length} registros · todas las cuentas`}
+        action={<NewTransactionModal accounts={accounts} />}
+      />
 
       {/* KPIs */}
       <StaggerGrid className="grid grid-cols-2 gap-4 lg:grid-cols-4" staggerDelay={0.06}>

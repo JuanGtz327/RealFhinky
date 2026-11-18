@@ -2,6 +2,7 @@ import { getDb } from "@/lib/db";
 import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { notFound } from "next/navigation";
 import { AccountForm } from "@/components/accounts/AccountForm";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function EditAccountPage({ params }: { params: { id: string } }) {
   const account = new AccountsRepository(getDb()).findById(params.id);
@@ -9,10 +10,11 @@ export default function EditAccountPage({ params }: { params: { id: string } }) 
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-[var(--color-foreground)]">Editar cuenta</h1>
-        <p className="text-sm text-[var(--color-muted)] mt-0.5">{account.name} · {account.bank}</p>
-      </div>
+      <PageHeader
+        eyebrow="Cuentas"
+        title="Editar cuenta"
+        subtitle={`${account.name} · ${account.bank}`}
+      />
       <AccountForm
         mode="edit"
         initial={{

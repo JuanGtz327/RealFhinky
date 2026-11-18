@@ -2,6 +2,7 @@
 
 import { useToast } from "@/components/kokonutui/promise-toast";
 import SlideToConfirm from "@/components/kokonutui/slide-to-confirm";
+import { SectionTitle } from "@/components/ui/section-title";
 
 export function DangerZone() {
   const { toast } = useToast();
@@ -20,9 +21,7 @@ export function DangerZone() {
 
   return (
     <div className="card-elevated p-6 space-y-5 border-[var(--color-danger)] border">
-      <h2 className="text-base font-semibold text-[var(--color-danger)]">
-        Zona peligrosa
-      </h2>
+      <SectionTitle variant="danger">Zona peligrosa</SectionTitle>
 
       <div className="space-y-6">
         <div className="space-y-3">

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/kokonutui/promise-toast";
+import { SectionTitle } from "@/components/ui/section-title";
 
 export function PreferencesForm() {
   const [preferences, setPreferences] = useState<Record<string, string>>({});
@@ -45,9 +46,7 @@ export function PreferencesForm() {
 
   return (
     <div className="card-elevated p-6 space-y-5">
-      <h2 className="text-base font-semibold text-[var(--color-navbar)]">
-        Preferencias de UI
-      </h2>
+      <SectionTitle>Preferencias de UI</SectionTitle>
 
       <div className="space-y-5 max-w-lg">
         <div className="space-y-1.5">

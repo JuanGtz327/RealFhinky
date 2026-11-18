@@ -4,12 +4,13 @@ import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { computeIncomeConfirmationStatus, computeIncomeOverdueAlerts } from "@/lib/domain/income";
 import { formatMonthLabel } from "@/lib/utils/formatters";
 import { format } from "date-fns";
-import { FadeIn } from "@/components/ui/animated";
 import { IncomeOverdueBanner } from "@/components/forecast/IncomeOverdueBanner";
 import { IncomeSourceCard } from "@/components/forecast/IncomeSourceCard";
 import { NewIncomeSourceModal } from "@/components/forecast/NewIncomeSourceModal";
 import EmptyState from "@/components/kokonutui/empty-state";
 import { DollarSign } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionTitle } from "@/components/ui/section-title";
 
 const CURRENT_MONTH = format(new Date(), "yyyy-MM");
 const TODAY         = format(new Date(), "yyyy-MM-dd");
@@ -26,25 +27,22 @@ export default function IncomePage() {
 
   return (
     <div className="space-y-8">
-      <FadeIn>
-        <h1 className="text-2xl font-semibold text-[var(--color-foreground)]">Ingresos</h1>
-        <p className="text-sm text-[var(--color-muted)] mt-0.5">
-          Fuentes de ingreso y confirmación de pagos — {formatMonthLabel(CURRENT_MONTH)}
-        </p>
-      </FadeIn>
+      <PageHeader
+        eyebrow="Ingresos"
+        title="Ingresos"
+        subtitle={`Fuentes de ingreso y confirmación de pagos — ${formatMonthLabel(CURRENT_MONTH)}`}
+        action={<NewIncomeSourceModal debitAccounts={debitAccounts} />}
+      />
 
       {overdueAlerts.length > 0 && (
         <IncomeOverdueBanner alerts={overdueAlerts} hideLink />
       )}
 
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-[var(--color-navbar)]">
-            Fuentes de ingreso
-            <span className="ml-2 text-sm font-normal text-[var(--color-muted)]">({sources.length})</span>
-          </h2>
-          <NewIncomeSourceModal debitAccounts={debitAccounts} />
-        </div>
+        <SectionTitle>
+          Fuentes de ingreso
+          <span className="text-sm font-normal text-[var(--color-muted)]">({sources.length})</span>
+        </SectionTitle>
 
         {sources.length === 0 ? (
           <EmptyState

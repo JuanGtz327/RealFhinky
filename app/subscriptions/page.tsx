@@ -8,6 +8,8 @@ import { NewChargeButton } from "@/components/subscriptions/NewChargeButton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import EmptyState from "@/components/kokonutui/empty-state";
 import { Repeat } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionTitle } from "@/components/ui/section-title";
 import { format } from "date-fns";
 
 export default function SubscriptionsPage() {
@@ -32,13 +34,12 @@ export default function SubscriptionsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Repeat className="w-6 h-6 text-[var(--color-accent)]" />
-          <h1 className="text-2xl font-semibold text-[var(--color-foreground)]">Suscripciones</h1>
-        </div>
-        <NewChargeButton accounts={allAccounts} />
-      </div>
+      <PageHeader
+        eyebrow="Servicios"
+        title="Suscripciones"
+        subtitle="Cargos recurrentes y servicios periódicos"
+        action={<NewChargeButton accounts={allAccounts} />}
+      />
 
       {/* Overdue banner */}
       <ChargeOverdueBanner overdueCount={overdueAlerts.length} />
@@ -46,7 +47,7 @@ export default function SubscriptionsPage() {
       {/* Active charges */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold text-[var(--color-navbar)]">Activos</h2>
+          <SectionTitle>Activos</SectionTitle>
           <StatusBadge variant="accent">{activeCharges.length}</StatusBadge>
         </div>
 
@@ -76,7 +77,7 @@ export default function SubscriptionsPage() {
       {inactiveCharges.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-base font-semibold text-[var(--color-navbar)]">Inactivos</h2>
+            <SectionTitle>Inactivos</SectionTitle>
             <StatusBadge variant="muted">{inactiveCharges.length}</StatusBadge>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 opacity-60">

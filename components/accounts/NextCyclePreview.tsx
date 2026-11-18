@@ -82,20 +82,21 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }:
   };
 
   return (
-    <div className="flex flex-col rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+    <div className="flex flex-col rounded-lg border border-[var(--color-border)] overflow-hidden h-[560px]">
       {/* Header con navegación */}
-      <div className="px-3 py-3 border-b border-[var(--color-border)] shrink-0">
+      <div className="px-3 h-[76px] flex flex-col justify-between py-3 shrink-0 bg-[var(--color-navbar)]">
+        {/* Fila 1: navegación */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIdx((i) => Math.max(0, i - 1))}
             disabled={idx === 0}
-            className="p-1.5 rounded-md bg-[var(--color-accent)] text-white disabled:opacity-25 hover:brightness-95 transition-all shrink-0"
+            className="p-1 rounded-md bg-[var(--color-accent)] text-white disabled:opacity-25 hover:brightness-95 transition-all shrink-0"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
           </button>
 
           <div className="flex-1 flex items-center justify-center gap-2 min-w-0">
-            <h3 className="text-sm font-semibold text-[var(--color-navbar)] truncate flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold text-white truncate flex items-center gap-1.5">
               <Scissors className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" />
               {formatMonthLabel(cycle.cycleMonth)}
             </h3>
@@ -106,49 +107,40 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }:
 
           <div className="flex items-center gap-2 shrink-0">
             {cutDate && (
-              <span className="text-xs text-[var(--color-muted)]">Día {cutDate}</span>
+              <span className="text-xs text-white/50">Día {cutDate}</span>
             )}
             <button
               onClick={() => setIdx((i) => Math.min(cycles.length - 1, i + 1))}
               disabled={idx === cycles.length - 1}
-              className="p-1.5 rounded-md bg-[var(--color-accent)] text-white disabled:opacity-25 hover:brightness-95 transition-all"
+              className="p-1 rounded-md bg-[var(--color-accent)] text-white disabled:opacity-25 hover:brightness-95 transition-all"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {/* Indicador de posición + botón volver al actual */}
-        <div className="flex items-center justify-center gap-2 mt-2">
-          <div className="flex items-center gap-1">
-            {cycles.map((c, i) => (
-              <button
-                key={c.cycleMonth}
-                onClick={() => setIdx(i)}
-                className={[
-                  "rounded-full transition-all",
-                  i === idx
-                    ? "w-4 h-1.5 bg-[var(--color-accent)]"
-                    : c.isCurrent
-                    ? "w-1.5 h-1.5 bg-[var(--color-accent)]/40"
-                    : "w-1.5 h-1.5 bg-[var(--color-border)]",
-                ].join(" ")}
-              />
-            ))}
+        {/* Fila 2: sub-info + total */}
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-white/40">
+            {cycle.msiItems.length} MSI · {cycle.directItems.length} compras
+            {(cycle.creditItems ?? []).length > 0 && (
+              <span className="text-[var(--color-success)]/70"> · −{formatMXN(credits)} en abonos</span>
+            )}
+          </p>
+          <div className="flex items-center gap-2 shrink-0">
+            {canConfirm && (
+              <ConfirmPaymentButton onClick={() => setDialogOpen(true)} variant="dark" />
+            )}
+            <div className="text-right">
+              <p className="text-[10px] uppercase tracking-wide text-white/50">{footerLabel}</p>
+              <span className="font-mono font-semibold text-[var(--color-accent)]">{formatMXN(total)}</span>
+            </div>
           </div>
-          {!cycle.isCurrent && (
-            <button
-              onClick={() => setIdx(defaultIndex)}
-              className="text-xs text-[var(--color-accent)] hover:underline transition-colors"
-            >
-              volver al actual
-            </button>
-          )}
         </div>
       </div>
 
       {/* Items */}
-      <div className="overflow-y-auto max-h-[480px]">
+      <div className="flex-1 min-h-0 overflow-y-auto bg-[var(--color-surface)]">
         {hasItems ? (
           <div className="divide-y divide-[var(--color-border)]">
             {cycle.msiItems.map((item, i) => (
@@ -276,30 +268,7 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }:
             </button>
           </div>
         </div>
-      ) : (
-        <div className="mt-auto shrink-0 px-4 py-4 bg-[var(--color-navbar)] rounded-b-lg">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <span className="text-sm font-medium text-white/70">{footerLabel}</span>
-              <p className="text-xs text-white/40 mt-0.5">
-                {cycle.msiItems.length} MSI · {cycle.directItems.length} compras
-                {(cycle.creditItems ?? []).length > 0 && (
-                  <span className="text-[var(--color-success)]/60"> · −{formatMXN(credits)} en abonos</span>
-                )}
-              </p>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              {canConfirm && (
-                <ConfirmPaymentButton
-                  onClick={() => setDialogOpen(true)}
-                  variant="dark"
-                />
-              )}
-              <span className="font-mono font-semibold text-[var(--color-accent)]">{formatMXN(total)}</span>
-            </div>
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {dialogOpen && (
         <ConfirmPaymentDialog

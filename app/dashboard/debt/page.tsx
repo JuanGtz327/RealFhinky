@@ -6,8 +6,10 @@ import { DebtTable } from "@/components/dashboard/DebtTable";
 import { LoanDebtTable } from "@/components/dashboard/LoanDebtTable";
 import { KPICard } from "@/components/ui/kpi-card";
 import { FadeIn, StaggerGrid } from "@/components/ui/animated";
-import { ArrowLeft, TrendingDown, CreditCard, Landmark } from "lucide-react";
+import { ArrowLeft, CreditCard, Landmark } from "lucide-react";
 import Link from "next/link";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionTitle } from "@/components/ui/section-title";
 
 export default function DebtPage() {
   const db      = getDb();
@@ -38,19 +40,16 @@ export default function DebtPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <FadeIn>
-        <div>
-          <Link href="/dashboard"
-            className="flex items-center gap-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-accent)] transition-colors mb-2">
-            <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
-          </Link>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold text-[var(--color-foreground)]">
-            <TrendingDown className="w-6 h-6 text-[var(--color-danger)]" /> Deuda
-          </h1>
-          <p className="text-sm text-[var(--color-muted)] mt-0.5">
-            Tarjetas de crédito y préstamos activos
-          </p>
-        </div>
+      <FadeIn className="space-y-2">
+        <Link href="/dashboard"
+          className="flex items-center gap-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-accent)] transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Panel
+        </Link>
+        <PageHeader
+          eyebrow="Panel"
+          title="Deuda"
+          subtitle="Tarjetas de crédito y préstamos activos"
+        />
       </FadeIn>
 
       {/* KPIs */}
@@ -63,9 +62,9 @@ export default function DebtPage() {
       {/* Crédito */}
       {creditAccounts.length > 0 && (
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-navbar)]">
-            <CreditCard className="w-4 h-4 text-[var(--color-navbar)]" /> Tarjetas de crédito
-          </h2>
+          <SectionTitle>
+            <CreditCard className="w-4 h-4 text-[var(--color-accent)]" /> Tarjetas de crédito
+          </SectionTitle>
           <DebtTable accounts={creditSummary} />
         </section>
       )}
@@ -73,9 +72,9 @@ export default function DebtPage() {
       {/* Préstamos */}
       {loanAccounts.length > 0 && (
         <section className="space-y-3">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-navbar)]">
-            <Landmark className="w-4 h-4 text-[var(--color-navbar)]" /> Préstamos
-          </h2>
+          <SectionTitle>
+            <Landmark className="w-4 h-4 text-[var(--color-accent)]" /> Préstamos
+          </SectionTitle>
           <LoanDebtTable loans={loanAccounts} />
         </section>
       )}

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { QuickActions } from "@/components/layout/QuickActions";
 
 const NAV_ITEMS = [
-  { href: "/dashboard",    label: "Dashboard",     icon: LayoutDashboard },
+  { href: "/dashboard",    label: "Panel",     icon: LayoutDashboard },
   { href: "/accounts",     label: "Cuentas",       icon: Wallet },
   { href: "/transactions", label: "Transacciones", icon: ArrowLeftRight },
   { href: "/income",         label: "Ingresos",      icon: DollarSign },
@@ -43,7 +43,7 @@ export function Navbar() {
                   "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                   active
                     ? "bg-[var(--color-accent)] text-white font-bold"
-                    : "text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
+                    : "text-[var(--color-accent)] hover:bg-white hover:text-[var(--color-navbar)]"
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -62,7 +62,7 @@ export function Navbar() {
               "flex items-center justify-center rounded-md p-1.5 transition-colors",
               pathname.startsWith("/settings")
                 ? "bg-[var(--color-accent)] text-white"
-                : "text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10"
+                : "text-[var(--color-accent)] hover:bg-white hover:text-[var(--color-navbar)]"
             )}
           >
             <Settings className="h-4 w-4" />

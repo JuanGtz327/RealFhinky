@@ -10,8 +10,9 @@ import { format } from "date-fns";
 import { CardBreakdownTable } from "@/components/dashboard/CardBreakdownTable";
 import { YearSelector } from "@/components/ui/year-selector";
 import { FadeIn } from "@/components/ui/animated";
-import { CreditCard, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { PageHeader } from "@/components/ui/page-header";
 import { Suspense } from "react";
 
 const CURRENT_MONTH = format(new Date(), "yyyy-MM");
@@ -109,22 +110,17 @@ export default function BreakdownPage({ searchParams }: { searchParams: { year?:
   return (
     <div className="space-y-8">
       {/* Header */}
-      <FadeIn>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <Link href="/dashboard"
-              className="flex items-center gap-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-accent)] transition-colors mb-2">
-              <ArrowLeft className="w-3.5 h-3.5" /> Dashboard
-            </Link>
-            <h1 className="flex items-center gap-2 text-2xl font-semibold text-[var(--color-foreground)]">
-              <CreditCard className="w-6 h-6 text-[var(--color-accent)]" /> Desglose por Tarjeta
-            </h1>
-            <p className="text-sm text-[var(--color-muted)] mt-0.5">
-              Gastos mensuales por tarjeta · meses futuros en <em>cursiva</em> = MSI comprometido
-            </p>
-          </div>
-          <YearSelector year={Number(year)} />
-        </div>
+      <FadeIn className="space-y-2">
+        <Link href="/dashboard"
+          className="flex items-center gap-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-accent)] transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Panel
+        </Link>
+        <PageHeader
+          eyebrow="Panel"
+          title="Desglose por Tarjeta"
+          subtitle="Gastos mensuales por tarjeta · meses futuros en cursiva = MSI comprometido"
+          action={<YearSelector year={Number(year)} />}
+        />
       </FadeIn>
 
       <Suspense fallback={<p className="text-[var(--color-muted)]">Cargando…</p>}>

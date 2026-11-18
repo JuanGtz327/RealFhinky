@@ -7,9 +7,11 @@ import Link from "next/link";
 import { CreditCard, Landmark, TrendingUp, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { KPICard } from "@/components/ui/kpi-card";
-import { FadeIn, StaggerGrid } from "@/components/ui/animated";
+import { StaggerGrid } from "@/components/ui/animated";
 import EmptyState from "@/components/kokonutui/empty-state";
 import { NewAccountModal } from "@/components/accounts/NewAccountModal";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionTitle } from "@/components/ui/section-title";
 import type { AlertLevel } from "@/lib/utils/alerts";
 
 function AccountCard({
@@ -83,13 +85,12 @@ export default function AccountsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <FadeIn className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-[var(--color-foreground)]">Cuentas</h1>
-          <p className="text-sm text-[var(--color-muted)] mt-0.5">{all.length} cuentas activas</p>
-        </div>
-        <NewAccountModal />
-      </FadeIn>
+      <PageHeader
+        eyebrow="Cuentas"
+        title="Cuentas"
+        subtitle={`${all.length} cuentas activas`}
+        action={<NewAccountModal />}
+      />
 
       {/* KPIs */}
       <StaggerGrid className="grid grid-cols-3 gap-4" staggerDelay={0.06}>
@@ -113,9 +114,9 @@ export default function AccountsPage() {
       {/* Crédito */}
       {credit.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
-            <CreditCard className="w-4 h-4 text-[var(--color-navbar)]" /> Tarjetas de crédito
-          </h2>
+          <SectionTitle>
+            <CreditCard className="w-4 h-4 text-[var(--color-accent)]" /> Tarjetas de crédito
+          </SectionTitle>
           <div className="space-y-2">
             {credit.map((a) => (
               <AccountCard key={a.id} id={a.id} name={a.name} bank={a.bank} last4={a.last4}
@@ -128,9 +129,9 @@ export default function AccountsPage() {
       {/* Préstamos */}
       {loans.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
-            <Landmark className="w-4 h-4 text-[var(--color-navbar)]" /> Préstamos
-          </h2>
+          <SectionTitle>
+            <Landmark className="w-4 h-4 text-[var(--color-accent)]" /> Préstamos
+          </SectionTitle>
           <div className="space-y-2">
             {loans.map((a) => (
               <AccountCard key={a.id} id={a.id} name={a.name} bank={a.bank}
@@ -143,9 +144,9 @@ export default function AccountsPage() {
       {/* Débito / Nómina */}
       {debit.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
-            <Landmark className="w-4 h-4 text-[var(--color-navbar)]" /> Débito / Nómina
-          </h2>
+          <SectionTitle>
+            <Landmark className="w-4 h-4 text-[var(--color-accent)]" /> Débito / Nómina
+          </SectionTitle>
           <div className="space-y-2">
             {debit.map((a) => (
               <AccountCard key={a.id} id={a.id} name={a.name} bank={a.bank} last4={a.last4}
@@ -158,9 +159,9 @@ export default function AccountsPage() {
       {/* Inversiones */}
       {investment.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-[var(--color-navbar)]" /> Inversiones
-          </h2>
+          <SectionTitle>
+            <TrendingUp className="w-4 h-4 text-[var(--color-accent)]" /> Inversiones
+          </SectionTitle>
           <div className="space-y-2">
             {investment.map((a) => (
               <AccountCard key={a.id} id={a.id} name={a.name} bank={a.bank}

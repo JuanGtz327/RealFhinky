@@ -27,7 +27,10 @@ import { PlannedTransferCard } from "@/components/accounts/PlannedTransferCard";
 import { NewPlannedTransferButton } from "@/components/accounts/NewPlannedTransferButton";
 
 import Link from "next/link";
-import { Pencil, ChevronLeft, ChevronRight, CreditCard, CalendarRange, BarChart2, ArrowUpDown, AlertTriangle } from "lucide-react";
+import { Pencil, ChevronLeft, ChevronRight, CreditCard, CalendarRange, BarChart2, ArrowUpDown, AlertTriangle, ArrowLeft } from "lucide-react";
+import { SectionTitle } from "@/components/ui/section-title";
+import { PageHeader } from "@/components/ui/page-header";
+import { FadeIn } from "@/components/ui/animated";
 
 const REAL_YEAR   = new Date().getFullYear();
 const MONTHS = ["01","02","03","04","05","06","07","08","09","10","11","12"];
@@ -270,22 +273,23 @@ export default function AccountDetailPage({
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between bg-[var(--color-navbar)] px-6 py-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold text-white">{account.name}</h1>
-            <StatusBadge variant="muted">{account.bank}</StatusBadge>
-            {account.last4 && (
-              <span className="text-sm text-white/50 font-mono">···{account.last4}</span>
-            )}
-          </div>
-          <p className="text-sm text-white/50 mt-0.5 capitalize">{account.type}</p>
-        </div>
-        <Link href={`/accounts/${account.id}/edit`}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white text-sm font-medium hover:brightness-95 transition-all">
-          <Pencil className="w-3.5 h-3.5" /> Editar
+      <FadeIn className="space-y-2">
+        <Link href="/accounts"
+          className="flex items-center gap-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-accent)] transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Cuentas
         </Link>
-      </div>
+        <PageHeader
+          eyebrow={isCredit ? "Crédito" : isLoan ? "Préstamo" : "Débito"}
+          title={account.name}
+          subtitle={`${account.bank}${account.last4 ? ` · ···${account.last4}` : ""}`}
+          action={
+            <Link href={`/accounts/${account.id}/edit`}
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--color-accent)] text-white text-sm font-medium rounded-lg hover:brightness-95 transition-all">
+              <Pencil className="w-3.5 h-3.5" /> Editar
+            </Link>
+          }
+        />
+      </FadeIn>
 
       {/* Banner: pagos pendientes de confirmar */}
       {isCredit && unpaidPastCount > 0 && (
@@ -351,10 +355,10 @@ export default function AccountDetailPage({
       {/* Tabla de amortización (solo préstamo) */}
       {isLoan && loanKpis && (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
+          <SectionTitle>
             <BarChart2 className="w-4 h-4 text-[var(--color-accent)]" />
             Tabla de amortización
-          </h2>
+          </SectionTitle>
           <LoanAmortizationSection
             rows={amortizationRows}
             accountId={account.id}
@@ -369,40 +373,35 @@ export default function AccountDetailPage({
       {/* MSI activos + Próximo corte (solo crédito) */}
       {isCredit && (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
+          <SectionTitle>
             <CreditCard className="w-4 h-4 text-[var(--color-accent)]" />
             Compromisos de crédito
-          </h2>
+          </SectionTitle>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Columna 1: MSI activos */}
-            <div className="flex flex-col rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
-              <div className="px-4 py-3 border-b border-[var(--color-border)] shrink-0">
-                <h3 className="text-sm font-semibold text-[var(--color-navbar)] flex items-center gap-1.5">
-                  <CalendarRange className="w-4 h-4 text-[var(--color-accent)]" />
-                  Meses sin interés activos
-                  <span className="text-sm font-normal text-[var(--color-muted)]">({activeMsi.length})</span>
-                </h3>
+            <div className="flex flex-col rounded-lg border border-[var(--color-border)] overflow-hidden h-[560px]">
+              <div className="px-4 h-[76px] flex flex-col justify-between py-3 shrink-0 bg-[var(--color-navbar)]">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                    <CalendarRange className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" />
+                    Meses sin interés activos
+                  </h3>
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] uppercase tracking-wide text-white/50">Total pendiente</p>
+                    <span className="font-mono font-semibold text-[var(--color-accent)]">{formatMXN(totalPendingMsi)}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-white/40">{activeMsi.length} planes activos</p>
               </div>
               {activeMsi.length > 0 ? (
-                <div className="overflow-y-auto max-h-[480px]">
+                <div className="flex-1 min-h-0 overflow-y-auto bg-[var(--color-surface)]">
                   <MsiActiveList items={activeMsi} />
                 </div>
               ) : (
-                <div className="flex items-center justify-center py-12">
+                <div className="flex-1 flex items-center justify-center bg-[var(--color-surface)]">
                   <p className="text-sm text-[var(--color-muted)]">Sin MSI activos</p>
                 </div>
               )}
-              <div className="mt-auto shrink-0 px-4 py-4 bg-[var(--color-navbar)] rounded-b-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-white/70">Total pendiente MSI</span>
-                  <span className="font-mono font-semibold text-[var(--color-accent)]">
-                    {formatMXN(totalPendingMsi)}
-                  </span>
-                </div>
-                <p className="text-xs text-white/40 mt-0.5">
-                  {activeMsi.length} planes activos
-                </p>
-              </div>
             </div>
 
             {/* Columna 2: Próximo corte */}
@@ -419,10 +418,10 @@ export default function AccountDetailPage({
       {/* Transferencias planificadas (solo débito) */}
       {isDebit && (
         <section className="space-y-4">
-          <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
+          <SectionTitle>
             <ArrowUpDown className="w-4 h-4 text-[var(--color-accent)]" />
             Transferencias planificadas
-          </h2>
+          </SectionTitle>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {/* Abonos planificados (direction=in) */}
@@ -479,10 +478,10 @@ export default function AccountDetailPage({
       {/* Tabla mes a mes */}
       <section className="space-y-3">
         <div className="flex items-center gap-3">
-          <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
+          <SectionTitle>
             <BarChart2 className="w-4 h-4 text-[var(--color-accent)]" />
             Movimientos por mes — {selectedYear}
-          </h2>
+          </SectionTitle>
           <div className="flex items-center gap-1 ml-auto">
             <Link href={`?year=${selectedYear - 1}`}
               className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--color-accent)] text-white hover:brightness-95 transition-all">
@@ -506,10 +505,10 @@ export default function AccountDetailPage({
       {/* Transacciones recientes */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
+          <SectionTitle>
             <ArrowUpDown className="w-4 h-4 text-[var(--color-accent)]" />
             Transacciones recientes
-          </h2>
+          </SectionTitle>
           <Link href={`/transactions?account_id=${account.id}`}
             className="text-sm text-[var(--color-accent)] hover:underline">
             Ver todas

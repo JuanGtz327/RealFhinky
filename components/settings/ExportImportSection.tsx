@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/kokonutui/promise-toast";
 import { Download, Upload } from "lucide-react";
+import { SectionTitle } from "@/components/ui/section-title";
 
 export function ExportImportSection() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,9 +49,7 @@ export function ExportImportSection() {
 
   return (
     <div className="card-elevated p-6 space-y-3">
-      <h2 className="text-base font-semibold text-[var(--color-navbar)]">
-        Exportar / Importar datos
-      </h2>
+      <SectionTitle>Exportar / Importar datos</SectionTitle>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="card-lift p-5 space-y-3">

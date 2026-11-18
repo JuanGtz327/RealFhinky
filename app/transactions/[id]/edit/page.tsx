@@ -3,6 +3,7 @@ import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { notFound } from "next/navigation";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function EditTransactionPage({ params }: { params: { id: string } }) {
   const db     = getDb();
@@ -13,10 +14,11 @@ export default function EditTransactionPage({ params }: { params: { id: string }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-[var(--color-foreground)]">Editar transacción</h1>
-        <p className="text-sm text-[var(--color-muted)] mt-0.5">{tx.merchant ?? tx.description ?? tx.id}</p>
-      </div>
+      <PageHeader
+        eyebrow="Transacciones"
+        title="Editar transacción"
+        subtitle={tx.merchant ?? tx.description ?? tx.id}
+      />
       <TransactionForm
         accounts={accounts}
         mode="edit"
