@@ -9,7 +9,7 @@ import { notFound } from "next/navigation";
 import { format, addMonths, subMonths } from "date-fns";
 import { computeBillingPeriod } from "@/lib/utils/billing";
 import { getCreditUtilizationAlert, getCutDateAlert, getPaymentDateAlert, getAnnualFeeAlert } from "@/lib/utils/alerts";
-import { computeEffectiveMonth, computeBalanceDiscrepancy, computeCreditUtilization, computePaymentStatus, isChargeInBillingPeriod, computeBlendedCharge } from "@/lib/domain";
+import { computeEffectiveMonth, computeBalanceDiscrepancy, computeCreditUtilization, computePaymentStatus, isChargeInBillingPeriod, computeBlendedCharge, deduplicateCycleItems } from "@/lib/domain";
 import { computeLoanKpis, computeAmortizationSchedule } from "@/lib/domain/loans";
 import { getMsiProgress } from "@/lib/utils/msi";
 import { formatMXN } from "@/lib/utils/formatters";
@@ -200,10 +200,12 @@ export default function AccountDetailPage({
     );
 
     // Recurring charges in this billing period
-    const recurringItems = accountCharges
+    const entriesByCharge = new Map<string, import("@/lib/types").RecurringChargeEntry[]>();
+    const rawRecurringItems = accountCharges
       .filter((ch) => isChargeInBillingPeriod(ch, periodStart, periodEnd))
       .map((ch) => {
         const entries = chargeRepo.findEntriesByChargeAndMonth(ch.id, cycleMonth);
+        entriesByCharge.set(ch.id, entries);
         const result = computeBlendedCharge(ch, entries, cycleMonth);
         return {
           chargeId: ch.id,
@@ -214,21 +216,25 @@ export default function AccountDetailPage({
         };
       });
 
+    const rawDirectItems = [
+      ...allTx
+        .filter((tx) => tx.type === "purchase" && !tx.is_msi && tx.date >= periodStart && tx.date <= periodEnd)
+        .map((tx) => ({ txId: tx.id, merchant: tx.merchant ?? tx.description ?? "Sin nombre", amount: tx.amount, date: tx.date, category: tx.category ?? undefined })),
+      ...(annualFeeInPeriod && !annualFeeAlreadyRecorded
+        ? [{ txId: "__annual_fee__", merchant: "Anualidad", amount: account.annual_fee!, date: account.annual_fee_date!, category: "Anualidad", isProjected: true }]
+        : []),
+    ];
+
+    const deduped = deduplicateCycleItems(rawDirectItems, rawRecurringItems, entriesByCharge);
+
     return {
       cycleMonth,
       msiItems: msiByMonth[cycleMonth] ?? [],
-      directItems: [
-        ...allTx
-          .filter((tx) => tx.type === "purchase" && !tx.is_msi && tx.date >= periodStart && tx.date <= periodEnd)
-          .map((tx) => ({ merchant: tx.merchant ?? tx.description ?? "Sin nombre", amount: tx.amount, date: tx.date, category: tx.category ?? undefined })),
-        ...(annualFeeInPeriod && !annualFeeAlreadyRecorded
-          ? [{ merchant: "Anualidad", amount: account.annual_fee!, date: account.annual_fee_date!, category: "Anualidad", isProjected: true }]
-          : []),
-      ],
+      directItems: deduped.directItems,
       creditItems: allTx
         .filter((tx) => tx.type === "transfer_in" && tx.date >= periodStart && tx.date <= periodEnd)
         .map((tx) => ({ merchant: tx.merchant ?? tx.description ?? "Abono / Devolución", amount: tx.amount, date: tx.date })),
-      recurringItems,
+      recurringItems: deduped.recurringItems,
       isCurrent: cycleMonth === effectiveMonth,
       payment: paymentByMonth.get(cycleMonth) ?? null,
     };

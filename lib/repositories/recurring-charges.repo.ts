@@ -20,6 +20,7 @@ export interface CreateRecurringChargeEntryInput {
   date: string;
   amount: number;
   notes?: string;
+  transaction_id?: string;
 }
 
 export class RecurringChargesRepository {
@@ -116,8 +117,8 @@ export class RecurringChargesRepository {
     const id = randomUUID();
     const now = new Date().toISOString();
     this.db.execute(
-      `INSERT INTO recurring_charge_entries (id, recurring_charge_id, date, amount, notes, created_at) VALUES (?,?,?,?,?,?)`,
-      [id, input.recurring_charge_id, input.date, input.amount, input.notes ?? null, now]
+      `INSERT INTO recurring_charge_entries (id, recurring_charge_id, date, amount, notes, transaction_id, created_at) VALUES (?,?,?,?,?,?,?)`,
+      [id, input.recurring_charge_id, input.date, input.amount, input.notes ?? null, input.transaction_id ?? null, now]
     );
     const rows = this.db.query<RecurringChargeEntry>("SELECT * FROM recurring_charge_entries WHERE id = ?", [id]);
     return rows[0];

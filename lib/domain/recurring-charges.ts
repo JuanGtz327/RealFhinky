@@ -79,6 +79,67 @@ export function computeBlendedCharge(
   return { confirmedTotal, remainingProjected, blendedTotal, confirmedCount, expectedCount, isExpected: true };
 }
 
+export interface CycleDirectItem {
+  txId: string;
+  merchant: string;
+  amount: number;
+  date: string;
+  category?: string;
+  isFromSubscription?: boolean;
+  isProjected?: boolean;
+}
+
+export interface CycleRecurringItem {
+  chargeId: string;
+  name: string;
+  amount: number;
+  isConfirmed: boolean;
+  category?: string;
+}
+
+export function deduplicateCycleItems(
+  directItems: CycleDirectItem[],
+  recurringItems: CycleRecurringItem[],
+  entriesByCharge: Map<string, RecurringChargeEntry[]>,
+): { directItems: CycleDirectItem[]; recurringItems: CycleRecurringItem[] } {
+  const linkedTxIds = new Set<string>();
+  const excludedChargeIds = new Set<string>();
+  const unlinkedConfirmedNames = new Map<string, string>();
+
+  for (const item of recurringItems) {
+    if (!item.isConfirmed) continue;
+    const entries = entriesByCharge.get(item.chargeId) ?? [];
+    if (entries.length === 0) continue;
+
+    const allLinked = entries.every((e) => e.transaction_id);
+    if (allLinked) {
+      for (const e of entries) linkedTxIds.add(e.transaction_id!);
+      excludedChargeIds.add(item.chargeId);
+    } else {
+      unlinkedConfirmedNames.set(item.name, item.chargeId);
+    }
+  }
+
+  if (unlinkedConfirmedNames.size > 0) {
+    for (const d of directItems) {
+      const chargeId = unlinkedConfirmedNames.get(d.merchant);
+      if (chargeId && !excludedChargeIds.has(chargeId)) {
+        linkedTxIds.add(d.txId);
+        excludedChargeIds.add(chargeId);
+        unlinkedConfirmedNames.delete(d.merchant);
+      }
+    }
+  }
+
+  return {
+    directItems: directItems.map((d) => ({
+      ...d,
+      isFromSubscription: linkedTxIds.has(d.txId) || undefined,
+    })),
+    recurringItems: recurringItems.filter((r) => !excludedChargeIds.has(r.chargeId)),
+  };
+}
+
 type ChargeMode = "full" | "blended" | "remaining-only" | "confirmed-only";
 
 export function computeMonthlyChargesForAccount(

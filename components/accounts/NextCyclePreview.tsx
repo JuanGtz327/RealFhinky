@@ -23,6 +23,7 @@ export interface NextCycleDirectItem {
   date: string;
   category?: string;
   isProjected?: boolean;
+  isFromSubscription?: boolean;
 }
 
 export interface NextCycleCreditItem {
@@ -170,7 +171,9 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }:
                   <div className="flex items-center gap-1.5">
                     {item.category === "Anualidad"
                       ? <Tag className="w-3.5 h-3.5 text-[var(--color-warning)] shrink-0" />
-                      : <ShoppingBag className="w-3.5 h-3.5 text-[var(--color-muted)] shrink-0" />
+                      : item.isFromSubscription
+                        ? <Repeat className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" />
+                        : <ShoppingBag className="w-3.5 h-3.5 text-[var(--color-muted)] shrink-0" />
                     }
                     <p className="text-sm font-medium text-[var(--color-foreground)] truncate">{item.merchant}</p>
                   </div>
@@ -178,7 +181,9 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }:
                 </div>
                 {item.category === "Anualidad"
                   ? <StatusBadge variant="warning">Anualidad</StatusBadge>
-                  : <StatusBadge variant="accent">Compra</StatusBadge>
+                  : item.isFromSubscription
+                    ? <StatusBadge variant="accent">Suscripción</StatusBadge>
+                    : <StatusBadge variant="accent">Compra</StatusBadge>
                 }
                 <p className="font-mono text-sm text-[var(--color-foreground)] shrink-0 w-24 text-right">
                   {formatMXN(item.amount)}
