@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   ArrowLeftRight,
-  TrendingUp,
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,7 +13,6 @@ const NAV_ITEMS = [
   { href: "/dashboard",    label: "Dashboard",      icon: LayoutDashboard },
   { href: "/accounts",     label: "Cuentas",         icon: Wallet },
   { href: "/transactions", label: "Transacciones",   icon: ArrowLeftRight },
-  { href: "/forecast",     label: "Pronóstico",      icon: TrendingUp },
 ];
 
 export function Sidebar() {

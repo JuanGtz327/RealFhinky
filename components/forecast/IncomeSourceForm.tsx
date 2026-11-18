@@ -93,7 +93,7 @@ export function IncomeSourceForm({ initial, mode = "create", onSuccess, debitAcc
         const { source } = await res.json();
         update(toastId, { title: "Fuente de ingreso guardada", body: source?.name ?? "", status: "success" });
         if (onSuccess) { router.refresh(); onSuccess(); }
-        else { router.push("/forecast"); router.refresh(); }
+        else { router.push("/income"); router.refresh(); }
       } catch (err) {
         update(toastId, { title: "Error al guardar", body: err instanceof Error ? err.message : "Error", status: "error" });
       }
