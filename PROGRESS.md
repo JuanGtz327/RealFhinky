@@ -1,57 +1,55 @@
 # Finkhy — Progress
 
-_Última actualización: 2026-11-13_
+_Última actualización: 2026-11-17_
 
 ---
 
-## Completado
+## 📋 Todas las Fases Completadas
 
-### Fundación (Fases 1–5)
-- Next.js 14 + TypeScript + App Router + Tailwind + shadcn/ui
-- SQLite via better-sqlite3, patrón Repository, interfaz `IDatabase`
-- Schema completo: `accounts`, `transactions`, `msi_installments`, `income_sources`, `income_entries`, `user_preferences`
-- Columnas nuevas: `opening_balance_carryover` en `accounts`, `custom_interval_days` en `income_sources`
-- API Routes: accounts, transactions, income sources/entries, dashboard (flow, breakdown, summary), settings (reset, seed, export, import, preferences), accounts/opening-balance
+Para el tracking detallado de todas las fases completadas (1–15), ver el histórico en [CLAUDE.md](./CLAUDE.md) sección "📋 Tracking de Tareas".
 
-### Dashboard `/dashboard`
-- Tabla 1: Flujo General Mensual con columnas dinámicas de préstamos
-  - `capital_inicio` anclado a saldos reales de cuentas débito (mes actual) o proyectado (meses futuros)
-  - Proyección de ingresos futuros desde `income_sources` con `projectMonthlyIncome()`
-  - `abonos` = solo `type=income`; `transferencias` = solo `type=purchase` (semántica correcta)
-- Tabla 2: Desglose por Tarjeta (año colapsable, mes resaltado, proyectado en cursiva)
-- Widget: Cuentas Débito, Deuda, Tarjetas con alertas de fechas
+### Resumen Ejecutivo
 
-### Cuentas `/accounts`, `/accounts/[id]`
-- Lista separada crédito vs débito
-- Detalle crédito: metadatos, tabla mes a mes, MSI activos, transacciones recientes
-- Detalle débito: metadatos, historial de movimientos
-- **OpeningBalanceWizard**: onboarding para tarjetas con saldo existente pero sin transacciones (3 secciones: compras del mes, MSI activos, arrastre opaco)
-- **MsiActiveList** con `SmoothDrawer`: muestra todas las cuotas pagadas (tachadas, verde) y pendientes (naranja) con animación de dígitos rolling
+**Fases 1–10:** Fundación, DB, Repositorios, API, UI, Dashboard, Cuentas, Transacciones, Forecast
+- Next.js 14 + TypeScript + App Router + Tailwind v4 + shadcn/ui
+- SQLite via better-sqlite3, patrón Repository, interfaz `IDatabase` (preparado para PostgreSQL)
+- Schema completo con tablas de soporte (MSI, Income, User Preferences)
+- API Routes para todas las entidades principales
+- Componentes UI normalizados con paleta de colores Warm Light Theme
+- Dashboard con 2 tablas principales + 3 widgets de KPIs
 
-### Transacciones `/transactions`
-- Tabla global con filtros
-- Formulario con tipos de transacción por tipo de cuenta:
-  - Crédito: `purchase` (Compra/Cargo), `transfer_in` (Pago a tarjeta)
-  - Débito: `income`, `purchase`, `transfer_out`, `transfer_in`
-- Default en débito: `income` (no `purchase`)
-- MSI con precisión decimal correcta (`Math.round` no `Math.floor`)
-- `expandMsi` recibe `startDate` para cuotas en meses correctos
-- Balance de cuenta se actualiza automáticamente al crear/eliminar transacciones
+**Fase 11 — Base de Calidad:** 
+- Extracción de lógica de negocio a `lib/domain/` (funciones puras)
+- Migración Jest → Vitest
+- Suite de tests funcionales para dominio (flow, yields, credit, balance, kpis)
+- Documentación de arquitectura
 
-### Configuración `/settings`
-- Preferencias UI (moneda, formato fecha, tema)
-- Export/Import JSON completo
-- Reset de datos (SlideToConfirm)
-- Re-seed datos demo (SlideToConfirm)
-- Gear icon en Navbar con active state
+**Fase 12 — Confirmación de Pagos por Ciclo:**
+- Tabla `cycle_payments` con status derivado (paid/partial/pending)
+- Domain logic y repositorio
+- UI: ConfirmPaymentDialog + NextCyclePreview integrado
+- Dashboard indicators reflejan confirmación
 
-### Componentes Kokonut UI
-- `empty-state`, `promise-toast`, `slide-to-confirm`, `smooth-drawer`
-- `smooth-drawer` adaptado para base-ui (no vaul), paleta Finkhy, animación spring, dígitos rolling, color-coded pagado/pendiente
+**Fase 13 — Confirmación de Ingresos:**
+- Domain logic: blending de confirmados + proyectados, no double-counting
+- Repository extensions para income entries
+- API routes para CRUD de entradas
+- Flow table con semantics correcta (current-month remaining-only, futuro blended)
+- UI: ConfirmIncomeDialog, IncomeSourceCard con progreso
 
-### Forecast `/forecast`
-- Fuentes de ingreso (frecuencia custom con `custom_interval_days`)
-- Proyección mensual con alertas de flujo negativo
+**Fase 14 — Cargos Recurrentes y Transferencias Planificadas:**
+- Tablas `recurring_charges`, `recurring_charge_entries`, `planned_transfers`, `planned_transfer_entries`
+- Domain logic: blending temporal, alertas por vencer
+- Integración con flow table (por tarjeta/cuenta)
+- Integración con NextCyclePreview (proyectado vs confirmado)
+- UI centralizada: `/subscriptions` para cargos, sección en `/accounts/[id]` para planned transfers
+
+**Fase 15 — Préstamos como Ciudadanos de Primera Clase:**
+- 6 columnas nuevas en `accounts` para amortización francesa
+- Domain logic completo: schedule, progreso, payoff, proyección en flow table
+- AccountMetaLoan + LoanAmortizationTable con desglose capital/interés
+- Confirmación de pagos variable (actualiza balance automáticamente)
+- Integración en flow table y dashboard (columnas dinámicas, widget de deuda separado)
 
 ---
 
