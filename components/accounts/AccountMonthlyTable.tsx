@@ -11,6 +11,8 @@ interface MonthRow {
   month: string;
   real: number;
   msi: number;
+  recurringCharges?: number;
+  abonos?: number;
   total: number;
   isFuture: boolean;
   isCurrent: boolean;
@@ -20,6 +22,7 @@ interface MonthRow {
 type Row = Record<string, unknown>;
 
 export function AccountMonthlyTable({ rows, isCredit }: { rows: MonthRow[]; isCredit: boolean }) {
+  const hasRecurring = isCredit && rows.some((r) => (r.recurringCharges ?? 0) > 0);
   const columns: Column<Row>[] = [
     {
       key: "month",
@@ -90,6 +93,22 @@ export function AccountMonthlyTable({ rows, isCredit }: { rows: MonthRow[]; isCr
           ? <span className="flex items-center justify-end gap-1.5"><CurrencyCell amount={Number(v)} /><StatusBadge variant="msi">MSI</StatusBadge></span>
           : <span className="text-[var(--color-muted)] text-xs">—</span>,
       },
+      {
+        key: "abonos" as const,
+        header: "Abonos",
+        align: "right" as const,
+        render: (v: unknown) => Number(v) > 0
+          ? <span className="flex items-center justify-end gap-1.5 text-[var(--color-success)]"><CurrencyCell amount={Number(v)} /></span>
+          : <span className="text-[var(--color-muted)] text-xs">—</span>,
+      },
+      ...(hasRecurring ? [{
+        key: "recurringCharges" as const,
+        header: "Suscripciones",
+        align: "right" as const,
+        render: (v: unknown, row: Row) => Number(v) > 0
+          ? <span className={row.isFuture ? "italic" : ""}><CurrencyCell amount={Number(v)} /></span>
+          : <span className="text-[var(--color-muted)] text-xs">—</span>,
+      }] : []),
     ] : []),
     {
       key: "total",
@@ -109,8 +128,12 @@ export function AccountMonthlyTable({ rows, isCredit }: { rows: MonthRow[]; isCr
     total: <CurrencyCell amount={yearTotal} />,
   };
   if (isCredit) {
-    footerRow.real = <CurrencyCell amount={rows.reduce((s, r) => s + r.real, 0)} />;
-    footerRow.msi  = <CurrencyCell amount={rows.reduce((s, r) => s + r.msi, 0)} />;
+    footerRow.real   = <CurrencyCell amount={rows.reduce((s, r) => s + r.real, 0)} />;
+    footerRow.msi    = <CurrencyCell amount={rows.reduce((s, r) => s + r.msi, 0)} />;
+    footerRow.abonos = <span className="text-[var(--color-success)]"><CurrencyCell amount={rows.reduce((s, r) => s + (r.abonos ?? 0), 0)} /></span>;
+    if (hasRecurring) {
+      footerRow.recurringCharges = <CurrencyCell amount={rows.reduce((s, r) => s + (r.recurringCharges ?? 0), 0)} />;
+    }
   }
 
   return (

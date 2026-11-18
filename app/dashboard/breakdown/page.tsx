@@ -2,8 +2,10 @@ import { getDb } from "@/lib/db";
 import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
+import { RecurringChargesRepository } from "@/lib/repositories/recurring-charges.repo";
 import { formatMXN } from "@/lib/utils/formatters";
 import { computeBillingPeriod } from "@/lib/utils/billing";
+import { isChargeInBillingPeriod, computeBlendedCharge } from "@/lib/domain/recurring-charges";
 import { format } from "date-fns";
 import { CardBreakdownTable } from "@/components/dashboard/CardBreakdownTable";
 import { YearSelector } from "@/components/ui/year-selector";
@@ -16,19 +18,28 @@ const CURRENT_MONTH = format(new Date(), "yyyy-MM");
 const MONTHS = ["01","02","03","04","05","06","07","08","09","10","11","12"];
 
 function BreakdownContent({ year }: { year: string }) {
-  const db      = getDb();
-  const accRepo = new AccountsRepository(db);
-  const txRepo  = new TransactionsRepository(db);
-  const msiRepo = new MsiRepository(db);
+  const db          = getDb();
+  const accRepo     = new AccountsRepository(db);
+  const txRepo      = new TransactionsRepository(db);
+  const msiRepo     = new MsiRepository(db);
+  const chargeRepo  = new RecurringChargesRepository(db);
 
   const creditAccounts = accRepo.findByType("credit");
   const years = [year, String(Number(year) - 1)];
+
+  // Pre-load recurring charges per account
+  const chargesByAccount: Record<string, ReturnType<typeof chargeRepo.findByAccount>> = {};
+  for (const acc of creditAccounts) {
+    chargesByAccount[acc.id] = chargeRepo.findByAccount(acc.id);
+  }
 
   const matrixByYear: Record<string, Record<string, Record<string, number>>> = {};
   for (const y of years) {
     matrixByYear[y] = {};
     for (const m of MONTHS) {
       const monthStr = `${y}-${m}`;
+      const isFuture  = monthStr > CURRENT_MONTH;
+      const isCurrent = monthStr === CURRENT_MONTH;
       matrixByYear[y][monthStr] = {};
       for (const acc of creditAccounts) {
         const { periodStart, periodEnd } = computeBillingPeriod(monthStr, acc.cut_date ?? null);
@@ -41,7 +52,23 @@ function BreakdownContent({ year }: { year: string }) {
           acc.annual_fee_date >= periodStart && acc.annual_fee_date <= periodEnd
             ? acc.annual_fee
             : 0;
-        matrixByYear[y][monthStr][acc.id] = purchases + msi + annualFee - credits;
+        // Recurring charges — use billing period, temporal blending
+        let recurringCharges = 0;
+        for (const charge of chargesByAccount[acc.id] ?? []) {
+          if (!isChargeInBillingPeriod(charge, periodStart, periodEnd)) continue;
+          const entries = chargeRepo.findEntriesByChargeAndMonth(charge.id, monthStr);
+          const result  = computeBlendedCharge(charge, entries, monthStr);
+          if (isFuture) {
+            recurringCharges += result.blendedTotal;
+          } else {
+            // Confirmed with transaction_id → already in purchases
+            const confirmedWithoutTx = entries
+              .filter((e) => !e.transaction_id)
+              .reduce((s, e) => s + e.amount, 0);
+            recurringCharges += result.remainingProjected + confirmedWithoutTx;
+          }
+        }
+        matrixByYear[y][monthStr][acc.id] = purchases + msi + annualFee + recurringCharges - credits;
       }
     }
   }

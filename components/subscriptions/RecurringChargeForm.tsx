@@ -98,7 +98,7 @@ export function RecurringChargeForm({ accounts, initial, onSave, onCancel }: Rec
         <select
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
-          className="select-field h-8 pl-2.5 pr-9 py-1 w-full"
+          className="select-field h-8 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-2.5 pr-9 py-1 text-sm text-[var(--color-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
         >
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>{a.name} — {a.bank}</option>
@@ -110,7 +110,7 @@ export function RecurringChargeForm({ accounts, initial, onSave, onCancel }: Rec
         <select
           value={frequency}
           onChange={(e) => setFrequency(e.target.value as "monthly" | "bimonthly" | "quarterly" | "semiannual" | "annual" | "custom")}
-          className="select-field h-8 pl-2.5 pr-9 py-1 w-full"
+          className="select-field h-8 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-2.5 pr-9 py-1 text-sm text-[var(--color-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
         >
           {Object.entries(FREQ_LABELS).map(([val, label]) => (
             <option key={val} value={val}>{label}</option>

@@ -11,6 +11,13 @@ export interface LoanAmount {
   amount: number;
 }
 
+export interface RecurringChargeDetail {
+  chargeId: string;
+  name: string;
+  amount: number;
+  confirmed: boolean;
+}
+
 export interface TarjetaBreakdown {
   id: string;
   name: string;
@@ -20,6 +27,7 @@ export interface TarjetaBreakdown {
   untracked?: number;
   flow_adjustment?: number | null;
   recurringCharges?: number;
+  recurringChargesDetail?: RecurringChargeDetail[];
 }
 
 export interface TransactionDetail {
@@ -68,8 +76,8 @@ export interface FlowRow {
   otrosGastos?: { id: string; description: string; amount: number }[];
   otrosIngresos?: { id: string; description: string; amount: number }[];
   recurringChargesDetail?: { chargeId: string; name: string; amount: number; confirmed: boolean }[];
-  plannedTransfersInDetail?: { transferId: string; name: string; amount: number }[];
-  plannedTransfersOutDetail?: { transferId: string; name: string; amount: number }[];
+  plannedTransfersInDetail?: { transferId: string; name: string; amount: number; confirmed: boolean }[];
+  plannedTransfersOutDetail?: { transferId: string; name: string; amount: number; confirmed: boolean }[];
 }
 
 export interface DebitAccountSummary {

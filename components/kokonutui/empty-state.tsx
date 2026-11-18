@@ -32,7 +32,7 @@ export default function EmptyState({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: EASE_OUT }}
         className={cn(
-          "flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)]/50 px-8 py-14 text-center",
+          "flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-8 py-14 text-center",
           className
         )}
       >

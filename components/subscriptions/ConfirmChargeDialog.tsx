@@ -41,6 +41,7 @@ export function ConfirmChargeDialog({ open, onClose, charge, monthStr, existingE
     if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) throw new Error("Fecha inválida");
 
     if (existingEntry) {
+      // Update the confirmation entry
       const res = await fetch(`/api/recurring-charges/entries/${existingEntry.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -50,11 +51,46 @@ export function ConfirmChargeDialog({ open, onClose, charge, monthStr, existingE
         const data = await res.json();
         throw new Error(data.error ?? "Error al actualizar");
       }
+      // Update the linked transaction if it exists
+      if (existingEntry.transaction_id) {
+        await fetch(`/api/transactions/${existingEntry.transaction_id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: paid, date, description: charge.name }),
+        });
+      }
     } else {
+      // Create the purchase transaction on the linked account
+      const txRes = await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          account_id: charge.account_id,
+          date,
+          merchant: charge.name,
+          amount: paid,
+          type: "purchase",
+          category: charge.category ?? "Suscripciones",
+          notes: notes || undefined,
+        }),
+      });
+      if (!txRes.ok) {
+        const data = await txRes.json();
+        throw new Error(data.error ?? "Error al registrar transacción");
+      }
+      const { transaction } = await txRes.json();
+
+      // Create the confirmation entry linked to the transaction
       const res = await fetch("/api/recurring-charges/entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recurring_charge_id: charge.id, date, amount: paid, notes: notes || undefined }),
+        body: JSON.stringify({
+          recurring_charge_id: charge.id,
+          date,
+          amount: paid,
+          notes: notes || undefined,
+          transaction_id: transaction.id,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();

@@ -128,9 +128,14 @@ export function computeChargeOverdueAlerts(
   const todayMonth = today.substring(0, 7);
   if (monthStr > todayMonth) return alerts;
 
+  const todayDay = parseInt(today.slice(8, 10));
+
   for (const charge of charges) {
     if (!charge.is_active) continue;
     if (!isChargeExpectedInMonth(charge, monthStr)) continue;
+    // Only alert if the charge day has already arrived or passed today
+    const chargeDay = charge.start_date ? parseInt(charge.start_date.slice(8, 10)) : 1;
+    if (chargeDay > todayDay) continue;
     const entries = entriesGrouped.get(charge.id) ?? [];
     const confirmedCount = entries.length;
     const overdueCount = Math.max(0, 1 - confirmedCount);

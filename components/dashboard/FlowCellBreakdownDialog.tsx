@@ -2,7 +2,7 @@
 
 import { FormDialog } from "@/components/ui/form-dialog";
 import { formatMXN, formatMonthLabel, formatDate } from "@/lib/utils/formatters";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2, Circle, Repeat, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FlowRow } from "@/lib/domain/types";
@@ -77,8 +77,10 @@ export function FlowCellBreakdownDialog({ open, onOpenChange, type, month, row, 
 function GastosContent({ row, isCurrent }: { row: FlowRow; isCurrent: boolean }) {
   const router = useRouter();
   const breakdown = row.tarjetasBreakdown ?? [];
-  const activeCards = breakdown.filter((c) => c.purchases + c.msi + (c.untracked ?? 0) + (c.flow_adjustment ?? 0) > 0 || isCurrent);
-  const tarjetasTotal = breakdown.reduce((s, c) => s + c.purchases + c.msi + (c.untracked ?? 0) + (c.flow_adjustment ?? 0), 0);
+  const cardTotal = (c: typeof breakdown[number]) =>
+    c.purchases + c.msi + (c.untracked ?? 0) + (c.flow_adjustment ?? 0) + (c.recurringCharges ?? 0);
+  const activeCards = breakdown.filter((c) => cardTotal(c) > 0 || isCurrent);
+  const tarjetasTotal = breakdown.reduce((s, c) => s + cardTotal(c), 0);
   const loansTotal = row.loans.reduce((s, l) => s + l.amount, 0);
   const activeLoans = row.loans.filter((l) => l.amount > 0);
 
@@ -151,7 +153,7 @@ function GastosContent({ row, isCurrent }: { row: FlowRow; isCurrent: boolean })
       ) : (
         activeCards.map((card) => {
           const adj = parseFloat(adjustments[card.id] || "0") || 0;
-          const cardTotal = card.purchases + card.msi + (card.untracked ?? 0) + adj;
+          const cardTotal = card.purchases + card.msi + (card.untracked ?? 0) + (card.recurringCharges ?? 0) + adj;
           return (
             <div key={card.id} className="pt-2 pb-1">
               <p className="text-sm font-medium text-[var(--color-foreground)] mb-1">
@@ -171,6 +173,21 @@ function GastosContent({ row, isCurrent }: { row: FlowRow; isCurrent: boolean })
                   valueClass="text-[var(--color-warning)]"
                 />
               )}
+              {(card.recurringChargesDetail ?? []).map((rc) => (
+                <div key={rc.chargeId} className="flex items-center justify-between py-1.5 border-b border-[var(--color-border)]/50">
+                  <div className="flex items-center gap-1.5">
+                    <Repeat className="w-3 h-3 text-[var(--color-muted)]" />
+                    <span className="text-sm text-[var(--color-foreground)]">{rc.name}</span>
+                    {rc.confirmed
+                      ? <span className="text-[10px] text-[var(--color-success)]">confirmado</span>
+                      : <span className="text-[10px] text-[var(--color-muted)] italic">proyectado</span>
+                    }
+                  </div>
+                  <span className={`text-sm font-mono ${rc.confirmed ? "text-[var(--color-foreground)]" : "text-[var(--color-muted)] italic"}`}>
+                    {formatMXN(rc.amount)}
+                  </span>
+                </div>
+              ))}
               {isCurrent && (
                 <div className="flex items-center justify-between py-1.5 border-b border-[var(--color-border)]/50">
                   <span className="text-sm text-[var(--color-foreground)]">Ajuste manual</span>
@@ -213,6 +230,35 @@ function GastosContent({ row, isCurrent }: { row: FlowRow; isCurrent: boolean })
         activeLoans.map((loan) => (
           <InfoRow key={loan.account_id} label={loan.name} value={formatMXN(loan.amount)} />
         ))
+      )}
+
+      {/* Transferencias salientes (solo meses no-actuales donde suman a gastos) */}
+      {row.transferencias > 0 && (
+        <>
+          <SectionHeader label="Transferencias salientes" total={row.transferencias} />
+          <Divider />
+          {(row.transferenciasDetail ?? []).map((t, i) => (
+            <InfoRow key={i} label={t.merchant || t.accountName} value={formatMXN(t.amount)} sub={`${t.accountName} · ${formatDate(t.date)}`} />
+          ))}
+          {(row.plannedTransfersOutDetail ?? []).map((pt) => (
+            <div key={pt.transferId} className="flex items-center justify-between py-1.5 border-b border-[var(--color-border)]/50">
+              <div className="flex items-center gap-1.5">
+                <ArrowUpRight className="w-3 h-3 text-[var(--color-accent)]" />
+                <span className="text-sm text-[var(--color-foreground)]">{pt.name}</span>
+                {pt.confirmed
+                  ? <span className="text-[10px] text-[var(--color-success)]">confirmado</span>
+                  : <span className="text-[10px] text-[var(--color-muted)] italic">proyectado</span>
+                }
+              </div>
+              <span className={`text-sm font-mono ${pt.confirmed ? "text-[var(--color-foreground)]" : "text-[var(--color-muted)] italic"}`}>
+                {formatMXN(pt.amount)}
+              </span>
+            </div>
+          ))}
+          {(row.transferenciasDetail ?? []).length === 0 && (row.plannedTransfersOutDetail ?? []).length === 0 && (
+            <EmptyNote text="Sin transferencias este mes" />
+          )}
+        </>
       )}
 
       {/* Otros gastos */}
@@ -420,14 +466,12 @@ function IngresosContent({ row, isCurrent, isFuture }: { row: FlowRow; isCurrent
       )}
 
       {/* Abonos — informativo */}
-      <div className="pt-2">
-        <SectionHeader label="Abonos · informativo" total={row.abonos} />
-        <p className="text-[10px] text-[var(--color-muted)] mb-1">No suman al total (ya incluidos en patrimonio)</p>
-        <Divider />
-        {abonos.length === 0 ? (
-          <EmptyNote text="Sin abonos este mes" />
-        ) : (
-          abonos.map((a, i) => (
+      {(row.abonos > 0 || abonos.length > 0 || (row.plannedTransfersInDetail ?? []).length > 0) && (
+        <div className="pt-2">
+          <SectionHeader label={isCurrent ? "Abonos · informativo" : "Abonos"} total={row.abonos} />
+          {isCurrent && <p className="text-[10px] text-[var(--color-muted)] mb-1">No suman al total en mes actual</p>}
+          <Divider />
+          {abonos.map((a, i) => (
             <InfoRow
               key={i}
               label={a.merchant || a.accountName}
@@ -435,26 +479,24 @@ function IngresosContent({ row, isCurrent, isFuture }: { row: FlowRow; isCurrent
               sub={`${a.accountName} · ${formatDate(a.date)}`}
               valueClass="text-[var(--color-success)]"
             />
-          ))
-        )}
-      </div>
-
-      {/* Transferencias — informativo, only if any */}
-      {(transferencias.length > 0 || row.transferencias > 0) && (
-        <div className="pt-2">
-          <SectionHeader label="Transferencias salientes · informativo" total={row.transferencias} />
-          <Divider />
-          {transferencias.length === 0 ? (
-            <EmptyNote text="Sin transferencias este mes" />
-          ) : (
-            transferencias.map((t, i) => (
-              <InfoRow
-                key={i}
-                label={t.merchant || t.accountName}
-                value={formatMXN(t.amount)}
-                sub={`${t.accountName} · ${formatDate(t.date)}`}
-              />
-            ))
+          ))}
+          {(row.plannedTransfersInDetail ?? []).map((pt) => (
+            <div key={pt.transferId} className="flex items-center justify-between py-1.5 border-b border-[var(--color-border)]/50">
+              <div className="flex items-center gap-1.5">
+                <ArrowDownLeft className="w-3 h-3 text-[var(--color-success)]" />
+                <span className="text-sm text-[var(--color-foreground)]">{pt.name}</span>
+                {pt.confirmed
+                  ? <span className="text-[10px] text-[var(--color-success)]">confirmado</span>
+                  : <span className="text-[10px] text-[var(--color-muted)] italic">proyectado</span>
+                }
+              </div>
+              <span className={`text-sm font-mono ${pt.confirmed ? "text-[var(--color-success)]" : "text-[var(--color-muted)] italic"}`}>
+                {formatMXN(pt.amount)}
+              </span>
+            </div>
+          ))}
+          {abonos.length === 0 && (row.plannedTransfersInDetail ?? []).length === 0 && (
+            <EmptyNote text="Sin abonos este mes" />
           )}
         </div>
       )}

@@ -78,19 +78,40 @@ export default function AccountDetailPage({
     const isCurrent = month === effectiveMonth;
 
     let real: number;
+    let abonos = 0;
     if (isCredit) {
       const { periodStart, periodEnd } = computeBillingPeriod(month, account.cut_date ?? null);
-      real = txRepo.sumPurchasesByPeriod(account.id, periodStart, periodEnd)
-           - txRepo.sumCreditsByPeriod(account.id, periodStart, periodEnd);
+      abonos = txRepo.sumCreditsByPeriod(account.id, periodStart, periodEnd);
+      real = txRepo.sumPurchasesByPeriod(account.id, periodStart, periodEnd) - abonos;
     } else {
       real = txRepo.sumByAccountAndMonth(account.id, month);
     }
     const msi  = msiRepo.sumByAccountAndMonth(account.id, month);
-    const total = isCredit ? (real + msi) : real;
+
+    let recurringCharges = 0;
+    if (isCredit && accountCharges.length > 0) {
+      const { periodStart, periodEnd } = computeBillingPeriod(month, account.cut_date ?? null);
+      for (const charge of accountCharges) {
+        if (!isChargeInBillingPeriod(charge, periodStart, periodEnd)) continue;
+        const entries = chargeRepo.findEntriesByChargeAndMonth(charge.id, month);
+        const result = computeBlendedCharge(charge, entries, month);
+        if (isFuture) {
+          recurringCharges += result.blendedTotal;
+        } else {
+          // Confirmed entries with transaction_id → already in purchases (real column)
+          const confirmedWithoutTx = entries
+            .filter((e) => !e.transaction_id)
+            .reduce((s, e) => s + e.amount, 0);
+          recurringCharges += result.remainingProjected + confirmedWithoutTx;
+        }
+      }
+    }
+
+    const total = isCredit ? (real + msi + recurringCharges) : real;
 
     const payment = paymentByMonth.get(month) ?? null;
     const paymentStatus = isCredit ? computePaymentStatus(payment, total).status : undefined;
-    return { month, real, msi, total, isFuture, isCurrent, paymentStatus };
+    return { month, real, msi, recurringCharges, abonos, total, isFuture, isCurrent, paymentStatus };
   });
 
   // ── MSI activos (transacciones MSI con cuotas futuras) ───
@@ -366,31 +387,61 @@ export default function AccountDetailPage({
 
       {/* Transferencias planificadas (solo débito) */}
       {isDebit && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
-              <ArrowUpDown className="w-4 h-4 text-[var(--color-accent)]" />
-              Transferencias planificadas
-            </h2>
-            <NewPlannedTransferButton accountId={account.id} />
-          </div>
+        <section className="space-y-4">
+          <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
+            <ArrowUpDown className="w-4 h-4 text-[var(--color-accent)]" />
+            Transferencias planificadas
+          </h2>
 
-          {accountTransfers.length === 0 ? (
-            <div className="flex items-center justify-center py-8 rounded-lg border border-dashed border-[var(--color-border)]">
-              <p className="text-sm text-[var(--color-muted)]">Sin transferencias planificadas</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Abonos planificados (direction=in) */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-success)]">Abonos planificados</p>
+                <NewPlannedTransferButton accountId={account.id} direction="in" label="Nuevo abono" />
+              </div>
+              {accountTransfers.filter((t) => t.direction === "in").length === 0 ? (
+                <div className="flex items-center justify-center py-6 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)]">
+                  <p className="text-xs text-[var(--color-muted)]">Sin abonos planificados</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {accountTransfers.filter((t) => t.direction === "in").map((transfer) => (
+                    <PlannedTransferCard
+                      key={transfer.id}
+                      transfer={transfer}
+                      currentMonth={currentMonth}
+                      entries={ptEntriesMap.get(transfer.id) ?? []}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {accountTransfers.map((transfer) => (
-                <PlannedTransferCard
-                  key={transfer.id}
-                  transfer={transfer}
-                  currentMonth={currentMonth}
-                  entries={ptEntriesMap.get(transfer.id) ?? []}
-                />
-              ))}
+
+            {/* Salidas planificadas (direction=out) */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-accent)]">Salidas planificadas</p>
+                <NewPlannedTransferButton accountId={account.id} direction="out" label="Nueva salida" />
+              </div>
+              {accountTransfers.filter((t) => t.direction === "out").length === 0 ? (
+                <div className="flex items-center justify-center py-6 rounded-lg border border-dashed border-[var(--color-border)] bg-[var(--color-surface)]">
+                  <p className="text-xs text-[var(--color-muted)]">Sin salidas planificadas</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {accountTransfers.filter((t) => t.direction === "out").map((transfer) => (
+                    <PlannedTransferCard
+                      key={transfer.id}
+                      transfer={transfer}
+                      currentMonth={currentMonth}
+                      entries={ptEntriesMap.get(transfer.id) ?? []}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </section>
       )}
 

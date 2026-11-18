@@ -36,15 +36,16 @@ interface PlannedTransferFormData {
 interface PlannedTransferFormProps {
   accountId: string;
   initial?: PlannedTransfer;
+  defaultDirection?: "in" | "out";
   onSave: (data: PlannedTransferFormData) => Promise<void>;
   onCancel: () => void;
 }
 
-export function PlannedTransferForm({ accountId, initial, onSave, onCancel }: PlannedTransferFormProps) {
+export function PlannedTransferForm({ accountId, initial, defaultDirection, onSave, onCancel }: PlannedTransferFormProps) {
   const today = new Date().toISOString().slice(0, 10);
 
   const [name, setName] = useState(initial?.name ?? "");
-  const [direction, setDirection] = useState<"in" | "out">(initial?.direction ?? "out");
+  const [direction, setDirection] = useState<"in" | "out">(initial?.direction ?? defaultDirection ?? "out");
   const [frequency, setFrequency] = useState<"weekly" | "biweekly" | "monthly" | "custom" | "one_time">(initial?.frequency ?? "monthly");
   const [baseAmount, setBaseAmount] = useState(initial ? String(initial.base_amount) : "");
   const [isVariable, setIsVariable] = useState(initial?.is_variable ?? false);
@@ -100,7 +101,7 @@ export function PlannedTransferForm({ accountId, initial, onSave, onCancel }: Pl
         <select
           value={direction}
           onChange={(e) => setDirection(e.target.value as "in" | "out")}
-          className="select-field h-8 pl-2.5 pr-9 py-1 w-full"
+          className="select-field h-8 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-2.5 pr-9 py-1 text-sm text-[var(--color-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
         >
           {Object.entries(DIR_LABELS).map(([val, label]) => (
             <option key={val} value={val}>{label}</option>
@@ -112,7 +113,7 @@ export function PlannedTransferForm({ accountId, initial, onSave, onCancel }: Pl
         <select
           value={frequency}
           onChange={(e) => setFrequency(e.target.value as "weekly" | "biweekly" | "monthly" | "custom" | "one_time")}
-          className="select-field h-8 pl-2.5 pr-9 py-1 w-full"
+          className="select-field h-8 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-2.5 pr-9 py-1 text-sm text-[var(--color-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
         >
           {Object.entries(FREQ_LABELS).map(([val, label]) => (
             <option key={val} value={val}>{label}</option>

@@ -561,8 +561,8 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 #### 14.E — Flow Table Integration (commit) ⚠️ highest risk
 - [x] 14.E.1 Modificar `app/dashboard/flow/page.tsx`: integrar recurring charges en cálculo de Tarjetas por tarjeta
 - [x] 14.E.2 Modificar `app/dashboard/flow/page.tsx`: integrar planned transfers en Abonos/Transferencias
-- [ ] 14.E.3 Modificar `components/dashboard/FlowCellBreakdownDialog.tsx`: subsección Suscripciones en per-card breakdown
-- [ ] 14.E.4 Modificar `components/dashboard/FlowCellBreakdownDialog.tsx`: sección Transferencias planificadas en IngresosContent
+- [x] 14.E.3 Modificar `components/dashboard/FlowCellBreakdownDialog.tsx`: subsección Suscripciones en per-card breakdown
+- [x] 14.E.4 Modificar `components/dashboard/FlowCellBreakdownDialog.tsx`: sección Transferencias planificadas en IngresosContent
 - [x] 14.E.5 Verificar: flow table refleja cargos recurrentes y planned transfers correctamente
 
 #### 14.F — NextCyclePreview Integration (commit)
@@ -573,7 +573,7 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 #### 14.G — Subscriptions UI (commit)
 - [x] 14.G.1 Crear `app/subscriptions/page.tsx` (vista centralizada)
 - [x] 14.G.2 Crear `components/subscriptions/RecurringChargeCard.tsx`
-- [ ] 14.G.3 Crear `components/subscriptions/RecurringChargeDetailDrawer.tsx`
+- [x] 14.G.3 ~~Crear `components/subscriptions/RecurringChargeDetailDrawer.tsx`~~ — reemplazado por edit/delete inline en la card
 - [x] 14.G.4 Crear `components/subscriptions/ConfirmChargeDialog.tsx`
 - [x] 14.G.5 Crear `components/subscriptions/RecurringChargeForm.tsx` + `NewRecurringChargeModal.tsx`
 - [x] 14.G.6 Crear `components/subscriptions/ChargeOverdueBanner.tsx`
@@ -581,12 +581,12 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 
 #### 14.H — Planned Transfers UI (commit)
 - [x] 14.H.1 Crear `components/accounts/PlannedTransferCard.tsx`
-- [ ] 14.H.2 Crear `components/accounts/PlannedTransferDetailDrawer.tsx`
+- [x] 14.H.2 ~~Crear `components/accounts/PlannedTransferDetailDrawer.tsx`~~ — reemplazado por edit/delete inline en la card
 - [x] 14.H.3 Crear `components/accounts/ConfirmTransferDialog.tsx`
 - [x] 14.H.4 Crear `components/accounts/PlannedTransferForm.tsx` + `NewPlannedTransferModal.tsx`
 - [x] 14.H.5 Modificar `app/accounts/[id]/page.tsx`: sección "Transferencias planificadas" para cuentas débito
 
 #### 14.I — Polish + Tests finales (commit)
 - [x] 14.I.1 Verificar `npm run check` pasa
-- [ ] 14.I.2 Test en browser: crear suscripción → confirmar → verificar en flow table y NextCyclePreview
-- [ ] 14.I.3 Test en browser: crear planned transfer → confirmar → verificar en flow table
+- [x] 14.I.2 Test en browser: crear suscripción → confirmar → verificar en flow table y NextCyclePreview
+- [x] 14.I.3 Test en browser: crear planned transfer → confirmar → verificar en flow table

@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS recurring_charge_entries (
   date                TEXT NOT NULL,
   amount              REAL NOT NULL,
   notes               TEXT,
+  transaction_id      TEXT REFERENCES transactions(id) ON DELETE SET NULL,
   created_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_recurring_charge_entries_charge ON recurring_charge_entries(recurring_charge_id);

@@ -53,7 +53,7 @@ export function PreferencesForm() {
         <div className="space-y-1.5">
           <Label>Moneda</Label>
           <select
-            className="select-field h-8 pl-2.5 pr-9 py-1"
+            className="select-field h-8 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-2.5 pr-9 py-1 text-sm text-[var(--color-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
             value={preferences.currency_code || "MXN"}
             onChange={(e) => {
               handleChange("currency_code", e.target.value);
@@ -74,7 +74,7 @@ export function PreferencesForm() {
         <div className="space-y-1.5">
           <Label>Formato de fecha</Label>
           <select
-            className="select-field h-8 pl-2.5 pr-9 py-1"
+            className="select-field h-8 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-2.5 pr-9 py-1 text-sm text-[var(--color-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
             value={preferences.date_locale || "es-MX"}
             onChange={(e) => handleChange("date_locale", e.target.value)}
           >
@@ -86,7 +86,7 @@ export function PreferencesForm() {
         <div className="space-y-1.5">
           <Label>Tema</Label>
           <select
-            className="select-field h-8 pl-2.5 pr-9 py-1"
+            className="select-field h-8 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-2.5 pr-9 py-1 text-sm text-[var(--color-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
             value={preferences.theme || "light"}
             onChange={(e) => handleChange("theme", e.target.value)}
           >

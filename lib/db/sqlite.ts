@@ -88,6 +88,11 @@ function getConnection(): Database.Database {
         CREATE INDEX idx_planned_transfer_entries_date ON planned_transfer_entries(date);
       `);
     }
+    // Add transaction_id to recurring_charge_entries if missing
+    const rceColumns = instance.prepare("PRAGMA table_info(recurring_charge_entries)").all() as { name: string }[];
+    if (!rceColumns.some((c) => c.name === "transaction_id")) {
+      instance.exec("ALTER TABLE recurring_charge_entries ADD COLUMN transaction_id TEXT REFERENCES transactions(id) ON DELETE SET NULL");
+    }
   }
   return instance;
 }

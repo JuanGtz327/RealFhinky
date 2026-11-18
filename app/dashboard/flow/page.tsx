@@ -7,12 +7,13 @@ import { FlowAdjustmentsRepository } from "@/lib/repositories/flow-adjustments.r
 import { RecurringChargesRepository } from "@/lib/repositories/recurring-charges.repo";
 import { PlannedTransfersRepository } from "@/lib/repositories/planned-transfers.repo";
 import { calcVariation, formatMXN } from "@/lib/utils/formatters";
+import { roundCents } from "@/lib/utils/msi";
 import { computeBillingPeriod } from "@/lib/utils/billing";
 import { computeMonthlyNomina, computeIncomeOverdueAlerts, computeExpectedPaymentDates, computeBlendedIncome } from "@/lib/domain/income";
 import { computeUntrackedDebt } from "@/lib/domain/flow-adjustment";
 import { computeEffectiveMonth } from "@/lib/domain/account-detail";
 import { computeBlendedCharge, isChargeInBillingPeriod } from "@/lib/domain/recurring-charges";
-import { computeMonthlyPlannedTransfers } from "@/lib/domain/planned-transfers";
+import { computeMonthlyPlannedTransfers, computeBlendedTransfer } from "@/lib/domain/planned-transfers";
 import type { RecurringChargeEntry, PlannedTransferEntry } from "@/lib/types";
 import { IncomeOverdueBanner } from "@/components/forecast/IncomeOverdueBanner";
 import { format } from "date-fns";
@@ -148,7 +149,7 @@ function FlowContent({ year }: { year: string }) {
     }
 
     let tarjetas = 0;
-    const tarjetasBreakdown: { id: string; name: string; bank: string; purchases: number; msi: number; untracked?: number; flow_adjustment?: number | null; recurringCharges?: number }[] = [];
+    const tarjetasBreakdown: { id: string; name: string; bank: string; purchases: number; msi: number; untracked?: number; flow_adjustment?: number | null; recurringCharges?: number; recurringChargesDetail?: { chargeId: string; name: string; amount: number; confirmed: boolean }[] }[] = [];
     for (const acc of creditAccounts) {
       const { periodStart, periodEnd } = computeBillingPeriod(monthStr, acc.cut_date ?? null);
       const purchases = txRepo.sumPurchasesByPeriod(acc.id, periodStart, periodEnd);
@@ -169,21 +170,32 @@ function FlowContent({ year }: { year: string }) {
         chargeEntriesMap.set(ch.id, entries);
       }
       let recurringChargesAmt = 0;
+      const recurringChargesDetail: { chargeId: string; name: string; amount: number; confirmed: boolean }[] = [];
       for (const ch of chargesForAcc) {
         const entries = chargeEntriesMap.get(ch.id) ?? [];
         const inPeriod = isChargeInBillingPeriod(ch, periodStart, periodEnd);
         if (!inPeriod && entries.length === 0) continue;
         const result = computeBlendedCharge(ch, entries, monthStr);
-        if (isCurrent && year === currentYear) {
-          recurringChargesAmt += result.remainingProjected + result.confirmedTotal;
-        } else if (isFuture) {
-          recurringChargesAmt += result.blendedTotal;
+        let amt = 0;
+        if (isFuture) {
+          // No transactions yet — use full blended projection
+          amt = result.blendedTotal;
         } else {
-          recurringChargesAmt += result.confirmedTotal;
+          // Current/past: confirmed entries auto-create a purchase transaction,
+          // so only count the remaining (unconfirmed) projected portion here.
+          // Entries without transaction_id are old-style confirmations (backward compat).
+          const confirmedWithoutTx = roundCents(
+            entries.filter((e) => !e.transaction_id).reduce((s, e) => s + e.amount, 0)
+          );
+          amt = result.remainingProjected + confirmedWithoutTx;
+        }
+        if (amt > 0) {
+          recurringChargesAmt += amt;
+          recurringChargesDetail.push({ chargeId: ch.id, name: ch.name, amount: amt, confirmed: result.confirmedTotal > 0 });
         }
       }
       tarjetas += purchases + msi + recurringChargesAmt + (untracked ?? 0) + (flowAdj ?? 0);
-      tarjetasBreakdown.push({ id: acc.id, name: acc.name, bank: acc.bank ?? "", purchases, msi, untracked, flow_adjustment: flowAdj, recurringCharges: recurringChargesAmt });
+      tarjetasBreakdown.push({ id: acc.id, name: acc.name, bank: acc.bank ?? "", purchases, msi, untracked, flow_adjustment: flowAdj, recurringCharges: recurringChargesAmt, recurringChargesDetail });
     }
 
     // Planned transfers (debit accounts)
@@ -196,6 +208,28 @@ function FlowContent({ year }: { year: string }) {
     const ptResult = computeMonthlyPlannedTransfers(allTransfers, ptEntriesMap, ptMode);
     abonos += ptResult.abonos;
     transferencias += ptResult.transferencias;
+
+    // Per-transfer detail for breakdown dialog
+    const plannedTransfersInDetail: { transferId: string; name: string; amount: number; confirmed: boolean }[] = [];
+    const plannedTransfersOutDetail: { transferId: string; name: string; amount: number; confirmed: boolean }[] = [];
+    for (const pt of allTransfers) {
+      if (!pt.is_active) continue;
+      const entries = ptEntriesMap.get(pt.id) ?? [];
+      const result = computeBlendedTransfer(pt, entries);
+      let amount = 0;
+      switch (ptMode) {
+        case "remaining-only": amount = result.remainingProjected; break;
+        case "blended":        amount = result.blendedTotal; break;
+        case "confirmed-only": amount = result.confirmedTotal; break;
+      }
+      if (amount <= 0) continue;
+      const confirmed = result.confirmedTotal > 0;
+      if (pt.direction === "in") {
+        plannedTransfersInDetail.push({ transferId: pt.id, name: pt.name, amount, confirmed });
+      } else {
+        plannedTransfersOutDetail.push({ transferId: pt.id, name: pt.name, amount, confirmed });
+      }
+    }
 
     const TODAY_STR = format(new Date(), "yyyy-MM-dd");
     const nominaSlots = incomeSources.map((src) => {
@@ -257,6 +291,7 @@ function FlowContent({ year }: { year: string }) {
       variacion: calcVariation(capital_inicio, capital_fin),
       nomina_display, nomina_confirmed, nomina_remaining, is_projected, is_partial,
       tarjetasBreakdown, abonosDetail, transferenciasDetail, nominaSlots,
+      plannedTransfersInDetail, plannedTransfersOutDetail,
       otrosGastos:   otrosGastos.map((a) => ({ id: a.id, description: a.description, amount: a.amount })),
       otrosIngresos: otrosIngresos.map((a) => ({ id: a.id, description: a.description, amount: a.amount })),
     });

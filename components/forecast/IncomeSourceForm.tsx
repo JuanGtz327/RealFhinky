@@ -159,7 +159,7 @@ export function IncomeSourceForm({ initial, mode = "create", onSuccess, debitAcc
       {debitAccounts.length > 0 && (
         <FormField label="Cuenta donde se deposita (opcional)">
           <select
-            className="select-field"
+            className="select-field h-8 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-2.5 pr-9 py-1 text-sm text-[var(--color-foreground)] focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
             value={form.account_id ?? ""}
             onChange={(e) => set("account_id", e.target.value || null)}
           >

@@ -117,6 +117,7 @@ export interface RecurringChargeEntry {
   date: string;
   amount: number;
   notes?: string;
+  transaction_id?: string | null;
   created_at: string;
 }
 

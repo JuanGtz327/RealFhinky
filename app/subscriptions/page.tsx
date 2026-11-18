@@ -8,13 +8,14 @@ import { NewChargeButton } from "@/components/subscriptions/NewChargeButton";
 import { StatusBadge } from "@/components/ui/status-badge";
 import EmptyState from "@/components/kokonutui/empty-state";
 import { Repeat } from "lucide-react";
+import { format } from "date-fns";
 
 export default function SubscriptionsPage() {
   const db = getDb();
   const chargeRepo = new RecurringChargesRepository(db);
   const accRepo = new AccountsRepository(db);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = format(new Date(), "yyyy-MM-dd"); // local timezone, not UTC
   const currentMonth = today.slice(0, 7);
 
   const allAccounts = accRepo.findAll();
@@ -64,6 +65,7 @@ export default function SubscriptionsPage() {
                 currentMonth={currentMonth}
                 entries={entriesMap.get(charge.id) ?? []}
                 accountName={accountMap.get(charge.account_id) ?? "Cuenta desconocida"}
+                accounts={allAccounts}
               />
             ))}
           </div>
@@ -85,6 +87,7 @@ export default function SubscriptionsPage() {
                 currentMonth={currentMonth}
                 entries={entriesMap.get(charge.id) ?? []}
                 accountName={accountMap.get(charge.account_id) ?? "Cuenta desconocida"}
+                accounts={allAccounts}
               />
             ))}
           </div>
