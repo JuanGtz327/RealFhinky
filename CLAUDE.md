@@ -68,6 +68,20 @@ Cambiar solo esos archivos para re-tematizar toda la app.
   - **Status derivado** (NO almacenado): `amount_paid >= amount_due` → `"paid"` (verde); `0 < amount_paid < amount_due` → `"partial"` (amarillo); sin registro → `"pending"`. La función `computePaymentStatus()` en `lib/domain/payments.ts` es la única fuente de esta lógica.
   - **NO auto-detectar**: registrar un `transfer_in` en la cuenta NO marca el ciclo como pagado. Son dos acciones independientes. El `transfer_in` solo afecta el saldo contable; la confirmación de pago es una declaración del usuario.
   - `paid_date`: fecha en que el usuario realizó el pago en su banco (puede diferir de la fecha del ciclo).
+- **Cargos recurrentes (`recurring_charges`)**: Suscripciones y servicios periódicos vinculados a una cuenta (crédito o débito). Semántica:
+  - Entidad independiente con `account_id` NOT NULL. Si se mueve a otra tarjeta, actualizar `account_id`. Si se cancela, poner `end_date` o `is_active = 0`.
+  - Frecuencias por **meses** (no días): monthly=1, bimonthly=2, quarterly=3, semiannual=6, annual=12, custom=custom_interval_months. Diferencia intencional con income_sources que usa días.
+  - `isChargeExpectedInMonth(charge, monthStr)` determina si un mes cae en ciclo de cargo usando start_date + frequency + end_date.
+  - Para tarjetas de crédito: los cargos recurrentes se proyectan usando **billing period** (`isChargeInBillingPeriod`), NO mes calendario. Regla global de billing period aplica.
+  - Para cuentas débito: los cargos recurrentes se proyectan por mes calendario.
+  - **Confirmación manual**: NO auto-match contra transacciones reales. El usuario confirma explícitamente cada cargo via `recurring_charge_entries`.
+  - En el flow table, los cargos recurrentes se suman al total de Tarjetas por tarjeta: `tarjetas += purchases + msi + recurringCharges + untracked + flowAdjustment`.
+  - Temporal: mes actual = remaining-only (no confirmados), futuro = blended, pasado = solo confirmados.
+- **Transferencias planificadas (`planned_transfers`)**: Movimientos de dinero esperados asociados a una cuenta débito. Semántica:
+  - `direction`: `"in"` = dinero que espero recibir (alimenta Abonos en flow), `"out"` = dinero que planeo enviar (alimenta Transferencias en flow).
+  - Frecuencias por **días** (espejo de income_sources): weekly, biweekly, monthly, custom, one_time.
+  - Confirmación manual via `planned_transfer_entries`. Mismo patrón blending que income_sources.
+  - Temporal: mes actual = remaining-only, futuro = blended, pasado = solo confirmados.
 
 ## Schema DB — Cambios recientes
 - `accounts` → columna `opening_balance_carryover REAL` (arrastre opaco al onboardear)
@@ -75,6 +89,10 @@ Cambiar solo esos archivos para re-tematizar toda la app.
 - `user_preferences` → tabla nueva (key TEXT PK, value TEXT) para preferencias UI
 - `UpdateAccountInput` incluye `opening_balance_carryover?: number`
 - `cycle_payments` → tabla nueva. Columnas: `id`, `account_id`, `cycle_month` (YYYY-MM), `amount_due`, `amount_paid`, `paid_date`, `notes`, `created_at`. UNIQUE en `(account_id, cycle_month)`.
+- `recurring_charges` → tabla nueva. Columnas: `id`, `name`, `account_id` (FK NOT NULL), `frequency`, `base_amount`, `is_variable`, `is_active`, `start_date`, `end_date`, `custom_interval_months`, `category`, `notes`, `created_at`.
+- `recurring_charge_entries` → tabla nueva. Columnas: `id`, `recurring_charge_id` (FK), `date`, `amount`, `notes`, `created_at`.
+- `planned_transfers` → tabla nueva. Columnas: `id`, `name`, `account_id` (FK NOT NULL), `direction` (in/out), `frequency`, `base_amount`, `is_variable`, `is_active`, `start_date`, `end_date`, `custom_interval_days`, `notes`, `created_at`.
+- `planned_transfer_entries` → tabla nueva. Columnas: `id`, `planned_transfer_id` (FK), `date`, `amount`, `notes`, `created_at`.
 
 ## Base de datos — Archivos y estado
 - **Archivos DB ignorados en git**: `finkhy.db`, `finkhy.db-shm`, `finkhy.db-wal`, `finkhy_seed.sql`
@@ -114,6 +132,8 @@ Cambiar solo esos archivos para re-tematizar toda la app.
 /accounts                → lista de todas las cuentas
 /accounts/[id]           → detalle de cuenta (crédito o débito)
 /transactions            → todas las transacciones (global)
+/income                  → gestión de fuentes de ingreso y confirmación
+/subscriptions           → gestión centralizada de suscripciones/servicios recurrentes
 /forecast                → pronósticos de flujo de caja
 /settings                → configuración usuario (preferencias, export/import, reset/reseed)
 ```
@@ -496,3 +516,77 @@ Antes de declarar completado: (1) confirmar que el cambio está en el componente
 - [x] 13.G.2 Actualizar `__tests__/forecast.test.ts` (custom frequency fix)
 - [ ] 13.G.3 Actualizar `__tests__/domain-flow.test.ts` (blended income + current-month semantics)
 - [x] 13.G.4 Verificar: `npm run check`
+
+### Fase 14 — Cargos Recurrentes y Transferencias Planificadas
+
+**Convención:** `[ ]` pendiente · `[x]` completado · `![]` decisión descubierta durante implementación
+**Plan completo:** `docs/fase-14-cargos-recurrentes-transferencias.md`
+
+#### 14.0 — Documentación previa (commit)
+- [x] 14.0.1 Guardar plan en `docs/fase-14-cargos-recurrentes-transferencias.md`
+- [x] 14.0.2 Agregar tracking de Fase 14 al CLAUDE.md
+- [x] 14.0.3 Documentar reglas de dominio: semántica de recurring_charges, planned_transfers, billing period integration
+
+#### 14.A — Data Model + Types (commit)
+- [x] 14.A.1 Agregar tablas `recurring_charges`, `recurring_charge_entries`, `planned_transfers`, `planned_transfer_entries` a `schema.sql`
+- [x] 14.A.2 Agregar migraciones aditivas a `lib/db/sqlite.ts`
+- [x] 14.A.3 Agregar types a `lib/types.ts` (RecurringCharge, RecurringChargeEntry, PlannedTransfer, PlannedTransferEntry)
+- [x] 14.A.4 Agregar domain types a `lib/domain/types.ts` (ChargeBlendedResult, BlendedTransferResult, etc.)
+- [x] 14.A.5 Extender TarjetaBreakdown y FlowRow con campos de recurring charges y planned transfers
+
+#### 14.B — Recurring Charges Domain + Repo (commit)
+- [x] 14.B.1 Crear `lib/domain/recurring-charges.ts` (chargeIntervalMonths, isChargeExpectedInMonth, computeBlendedCharge, computeMonthlyChargesForAccount, isChargeInBillingPeriod, computeChargeOverdueAlerts)
+- [x] 14.B.2 Crear `lib/repositories/recurring-charges.repo.ts`
+- [x] 14.B.3 Actualizar `lib/domain/index.ts` barrel export
+- [x] 14.B.4 Crear `__tests__/domain-recurring-charges.test.ts`
+- [x] 14.B.5 Verificar: `npm run check`
+
+#### 14.C — Planned Transfers Domain + Repo (commit)
+- [x] 14.C.1 Crear `lib/domain/planned-transfers.ts` (expectedTransferCount, computeBlendedTransfer, computeMonthlyPlannedTransfers, computeTransferOverdueAlerts)
+- [x] 14.C.2 Crear `lib/repositories/planned-transfers.repo.ts`
+- [x] 14.C.3 Actualizar `lib/domain/index.ts` barrel export
+- [x] 14.C.4 Crear `__tests__/domain-planned-transfers.test.ts`
+- [x] 14.C.5 Verificar: `npm run check`
+
+#### 14.D — API Routes (commit)
+- [x] 14.D.1 Crear `app/api/recurring-charges/route.ts` (GET/POST)
+- [x] 14.D.2 Crear `app/api/recurring-charges/[id]/route.ts` (PUT/DELETE)
+- [x] 14.D.3 Crear `app/api/recurring-charges/entries/route.ts` (GET/POST)
+- [x] 14.D.4 Crear `app/api/recurring-charges/entries/[id]/route.ts` (PUT/DELETE)
+- [x] 14.D.5 Crear `app/api/planned-transfers/route.ts` (GET/POST)
+- [x] 14.D.6 Crear `app/api/planned-transfers/[id]/route.ts` (PUT/DELETE)
+- [x] 14.D.7 Crear `app/api/planned-transfers/entries/route.ts` (GET/POST)
+- [x] 14.D.8 Crear `app/api/planned-transfers/entries/[id]/route.ts` (PUT/DELETE)
+
+#### 14.E — Flow Table Integration (commit) ⚠️ highest risk
+- [x] 14.E.1 Modificar `app/dashboard/flow/page.tsx`: integrar recurring charges en cálculo de Tarjetas por tarjeta
+- [x] 14.E.2 Modificar `app/dashboard/flow/page.tsx`: integrar planned transfers en Abonos/Transferencias
+- [ ] 14.E.3 Modificar `components/dashboard/FlowCellBreakdownDialog.tsx`: subsección Suscripciones en per-card breakdown
+- [ ] 14.E.4 Modificar `components/dashboard/FlowCellBreakdownDialog.tsx`: sección Transferencias planificadas en IngresosContent
+- [x] 14.E.5 Verificar: flow table refleja cargos recurrentes y planned transfers correctamente
+
+#### 14.F — NextCyclePreview Integration (commit)
+- [x] 14.F.1 Extender `BillingCycle` interface con `recurringItems`
+- [x] 14.F.2 Modificar `app/accounts/[id]/page.tsx`: cargar recurring charges, pasar a NextCyclePreview
+- [x] 14.F.3 Modificar `components/accounts/NextCyclePreview.tsx`: renderizar recurring charges (confirmado vs proyectado)
+
+#### 14.G — Subscriptions UI (commit)
+- [x] 14.G.1 Crear `app/subscriptions/page.tsx` (vista centralizada)
+- [x] 14.G.2 Crear `components/subscriptions/RecurringChargeCard.tsx`
+- [ ] 14.G.3 Crear `components/subscriptions/RecurringChargeDetailDrawer.tsx`
+- [x] 14.G.4 Crear `components/subscriptions/ConfirmChargeDialog.tsx`
+- [x] 14.G.5 Crear `components/subscriptions/RecurringChargeForm.tsx` + `NewRecurringChargeModal.tsx`
+- [x] 14.G.6 Crear `components/subscriptions/ChargeOverdueBanner.tsx`
+- [x] 14.G.7 Modificar `components/layout/Navbar.tsx`: agregar "Suscripciones" con icono `Repeat`
+
+#### 14.H — Planned Transfers UI (commit)
+- [x] 14.H.1 Crear `components/accounts/PlannedTransferCard.tsx`
+- [ ] 14.H.2 Crear `components/accounts/PlannedTransferDetailDrawer.tsx`
+- [x] 14.H.3 Crear `components/accounts/ConfirmTransferDialog.tsx`
+- [x] 14.H.4 Crear `components/accounts/PlannedTransferForm.tsx` + `NewPlannedTransferModal.tsx`
+- [x] 14.H.5 Modificar `app/accounts/[id]/page.tsx`: sección "Transferencias planificadas" para cuentas débito
+
+#### 14.I — Polish + Tests finales (commit)
+- [x] 14.I.1 Verificar `npm run check` pasa
+- [ ] 14.I.2 Test en browser: crear suscripción → confirmar → verificar en flow table y NextCyclePreview
+- [ ] 14.I.3 Test en browser: crear planned transfer → confirmar → verificar en flow table

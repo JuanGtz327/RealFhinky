@@ -43,6 +43,51 @@ function getConnection(): Database.Database {
         instance.exec("ALTER TABLE flow_adjustments ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'");
       }
     }
+    if (!tables.some((t) => t.name === "recurring_charges")) {
+      instance.exec(`
+        CREATE TABLE recurring_charges (
+          id TEXT PRIMARY KEY, name TEXT NOT NULL,
+          account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+          frequency TEXT NOT NULL CHECK(frequency IN ('monthly','bimonthly','quarterly','semiannual','annual','custom')),
+          base_amount REAL NOT NULL DEFAULT 0, is_variable INTEGER NOT NULL DEFAULT 0,
+          is_active INTEGER NOT NULL DEFAULT 1, start_date TEXT, end_date TEXT,
+          custom_interval_months INTEGER, category TEXT, notes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX idx_recurring_charges_account ON recurring_charges(account_id);
+        CREATE TABLE recurring_charge_entries (
+          id TEXT PRIMARY KEY,
+          recurring_charge_id TEXT NOT NULL REFERENCES recurring_charges(id) ON DELETE CASCADE,
+          date TEXT NOT NULL, amount REAL NOT NULL, notes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX idx_recurring_charge_entries_charge ON recurring_charge_entries(recurring_charge_id);
+        CREATE INDEX idx_recurring_charge_entries_date ON recurring_charge_entries(date);
+      `);
+    }
+    if (!tables.some((t) => t.name === "planned_transfers")) {
+      instance.exec(`
+        CREATE TABLE planned_transfers (
+          id TEXT PRIMARY KEY, name TEXT NOT NULL,
+          account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+          direction TEXT NOT NULL CHECK(direction IN ('in','out')),
+          frequency TEXT NOT NULL CHECK(frequency IN ('weekly','biweekly','monthly','custom','one_time')),
+          base_amount REAL NOT NULL DEFAULT 0, is_variable INTEGER NOT NULL DEFAULT 0,
+          is_active INTEGER NOT NULL DEFAULT 1, start_date TEXT, end_date TEXT,
+          custom_interval_days INTEGER, notes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX idx_planned_transfers_account ON planned_transfers(account_id);
+        CREATE TABLE planned_transfer_entries (
+          id TEXT PRIMARY KEY,
+          planned_transfer_id TEXT NOT NULL REFERENCES planned_transfers(id) ON DELETE CASCADE,
+          date TEXT NOT NULL, amount REAL NOT NULL, notes TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX idx_planned_transfer_entries_transfer ON planned_transfer_entries(planned_transfer_id);
+        CREATE INDEX idx_planned_transfer_entries_date ON planned_transfer_entries(date);
+      `);
+    }
   }
   return instance;
 }

@@ -4,11 +4,16 @@ import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { IncomeRepository } from "@/lib/repositories/income.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
 import { FlowAdjustmentsRepository } from "@/lib/repositories/flow-adjustments.repo";
+import { RecurringChargesRepository } from "@/lib/repositories/recurring-charges.repo";
+import { PlannedTransfersRepository } from "@/lib/repositories/planned-transfers.repo";
 import { calcVariation, formatMXN } from "@/lib/utils/formatters";
 import { computeBillingPeriod } from "@/lib/utils/billing";
 import { computeMonthlyNomina, computeIncomeOverdueAlerts, computeExpectedPaymentDates, computeBlendedIncome } from "@/lib/domain/income";
 import { computeUntrackedDebt } from "@/lib/domain/flow-adjustment";
 import { computeEffectiveMonth } from "@/lib/domain/account-detail";
+import { computeBlendedCharge, isChargeInBillingPeriod } from "@/lib/domain/recurring-charges";
+import { computeMonthlyPlannedTransfers } from "@/lib/domain/planned-transfers";
+import type { RecurringChargeEntry, PlannedTransferEntry } from "@/lib/types";
 import { IncomeOverdueBanner } from "@/components/forecast/IncomeOverdueBanner";
 import { format } from "date-fns";
 import { MonthlyFlowTable } from "@/components/dashboard/MonthlyFlowTable";
@@ -32,6 +37,10 @@ function FlowContent({ year }: { year: string }) {
   const debitAccounts  = accRepo.findByType("debit");
   const incomeSources  = incRepo.findAllSources();
   const adjRepo        = new FlowAdjustmentsRepository(db);
+  const chargeRepo     = new RecurringChargesRepository(db);
+  const ptRepo         = new PlannedTransfersRepository(db);
+  const allCharges     = chargeRepo.findAll();
+  const allTransfers   = ptRepo.findAll();
 
   const allAccounts = accRepo.findAll(false);
   const onboardingMonth = allAccounts.length > 0
@@ -139,7 +148,7 @@ function FlowContent({ year }: { year: string }) {
     }
 
     let tarjetas = 0;
-    const tarjetasBreakdown: { id: string; name: string; bank: string; purchases: number; msi: number; untracked?: number; flow_adjustment?: number | null }[] = [];
+    const tarjetasBreakdown: { id: string; name: string; bank: string; purchases: number; msi: number; untracked?: number; flow_adjustment?: number | null; recurringCharges?: number }[] = [];
     for (const acc of creditAccounts) {
       const { periodStart, periodEnd } = computeBillingPeriod(monthStr, acc.cut_date ?? null);
       const purchases = txRepo.sumPurchasesByPeriod(acc.id, periodStart, periodEnd);
@@ -152,9 +161,41 @@ function FlowContent({ year }: { year: string }) {
         untracked = computeUntrackedDebt(acc, allTx, pendingMsi);
       }
       const flowAdj = (isCurrent && year === currentYear) ? (acc.flow_adjustment ?? null) : null;
-      tarjetas += purchases + msi + (untracked ?? 0) + (flowAdj ?? 0);
-      tarjetasBreakdown.push({ id: acc.id, name: acc.name, bank: acc.bank ?? "", purchases, msi, untracked, flow_adjustment: flowAdj });
+      // Recurring charges for this credit account (use billing period)
+      const chargesForAcc = allCharges.filter((c) => c.account_id === acc.id);
+      const chargeEntriesMap = new Map<string, RecurringChargeEntry[]>();
+      for (const ch of chargesForAcc) {
+        const entries = chargeRepo.findEntriesByChargeAndMonth(ch.id, monthStr);
+        chargeEntriesMap.set(ch.id, entries);
+      }
+      let recurringChargesAmt = 0;
+      for (const ch of chargesForAcc) {
+        const entries = chargeEntriesMap.get(ch.id) ?? [];
+        const inPeriod = isChargeInBillingPeriod(ch, periodStart, periodEnd);
+        if (!inPeriod && entries.length === 0) continue;
+        const result = computeBlendedCharge(ch, entries, monthStr);
+        if (isCurrent && year === currentYear) {
+          recurringChargesAmt += result.remainingProjected + result.confirmedTotal;
+        } else if (isFuture) {
+          recurringChargesAmt += result.blendedTotal;
+        } else {
+          recurringChargesAmt += result.confirmedTotal;
+        }
+      }
+      tarjetas += purchases + msi + recurringChargesAmt + (untracked ?? 0) + (flowAdj ?? 0);
+      tarjetasBreakdown.push({ id: acc.id, name: acc.name, bank: acc.bank ?? "", purchases, msi, untracked, flow_adjustment: flowAdj, recurringCharges: recurringChargesAmt });
     }
+
+    // Planned transfers (debit accounts)
+    const ptEntriesMap = new Map<string, PlannedTransferEntry[]>();
+    for (const pt of allTransfers) {
+      const entries = ptRepo.findEntriesByTransferAndMonth(pt.id, monthStr);
+      ptEntriesMap.set(pt.id, entries);
+    }
+    const ptMode = (isCurrent && year === currentYear) ? "remaining-only" : isFuture ? "blended" : "confirmed-only";
+    const ptResult = computeMonthlyPlannedTransfers(allTransfers, ptEntriesMap, ptMode);
+    abonos += ptResult.abonos;
+    transferencias += ptResult.transferencias;
 
     const TODAY_STR = format(new Date(), "yyyy-MM-dd");
     const nominaSlots = incomeSources.map((src) => {

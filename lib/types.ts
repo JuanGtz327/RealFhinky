@@ -92,3 +92,58 @@ export interface CyclePayment {
   notes?: string;
   created_at: string;
 }
+
+export type RecurringChargeFrequency = "monthly" | "bimonthly" | "quarterly" | "semiannual" | "annual" | "custom";
+
+export interface RecurringCharge {
+  id: string;
+  name: string;
+  account_id: string;
+  frequency: RecurringChargeFrequency;
+  base_amount: number;
+  is_variable: boolean;
+  is_active: boolean;
+  start_date?: string;
+  end_date?: string;
+  custom_interval_months?: number;
+  category?: string;
+  notes?: string;
+  created_at: string;
+}
+
+export interface RecurringChargeEntry {
+  id: string;
+  recurring_charge_id: string;
+  date: string;
+  amount: number;
+  notes?: string;
+  created_at: string;
+}
+
+export type PlannedTransferFrequency = "weekly" | "biweekly" | "monthly" | "custom" | "one_time";
+export type PlannedTransferDirection = "in" | "out";
+
+export interface PlannedTransfer {
+  id: string;
+  name: string;
+  account_id: string;
+  direction: PlannedTransferDirection;
+  frequency: PlannedTransferFrequency;
+  base_amount: number;
+  is_variable: boolean;
+  is_active: boolean;
+  start_date?: string;
+  end_date?: string;
+  custom_interval_days?: number;
+  notes?: string;
+  created_at: string;
+}
+
+export interface PlannedTransferEntry {
+  id: string;
+  planned_transfer_id: string;
+  date: string;
+  amount: number;
+  notes?: string;
+  created_at: string;
+}

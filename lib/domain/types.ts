@@ -19,6 +19,7 @@ export interface TarjetaBreakdown {
   msi: number;
   untracked?: number;
   flow_adjustment?: number | null;
+  recurringCharges?: number;
 }
 
 export interface TransactionDetail {
@@ -66,6 +67,9 @@ export interface FlowRow {
   nominaSlots?: NominaSourceSlots[];
   otrosGastos?: { id: string; description: string; amount: number }[];
   otrosIngresos?: { id: string; description: string; amount: number }[];
+  recurringChargesDetail?: { chargeId: string; name: string; amount: number; confirmed: boolean }[];
+  plannedTransfersInDetail?: { transferId: string; name: string; amount: number }[];
+  plannedTransfersOutDetail?: { transferId: string; name: string; amount: number }[];
 }
 
 export interface DebitAccountSummary {
@@ -123,4 +127,59 @@ export interface IncomeConfirmationStatus {
   expectedCount: number;
   confirmedTotal: number;
   remainingAmount: number;
+}
+
+export interface ChargeBlendedResult {
+  confirmedTotal: number;
+  remainingProjected: number;
+  blendedTotal: number;
+  confirmedCount: number;
+  expectedCount: number;
+  isExpected: boolean;
+}
+
+export interface ChargeConfirmationStatus {
+  status: "confirmed" | "pending" | "not_expected";
+  confirmedCount: number;
+  expectedCount: number;
+  confirmedTotal: number;
+  remainingAmount: number;
+}
+
+export interface ChargeOverdueAlert {
+  chargeId: string;
+  chargeName: string;
+  overdueCount: number;
+  confirmedCount: number;
+}
+
+export interface BlendedTransferResult {
+  confirmedTotal: number;
+  remainingProjected: number;
+  blendedTotal: number;
+  confirmedCount: number;
+  expectedCount: number;
+}
+
+export interface MonthlyPlannedTransferResult {
+  abonos: number;
+  transferencias: number;
+  abonosConfirmed: number;
+  transferenciaConfirmed: number;
+}
+
+export interface TransferConfirmationStatus {
+  status: "confirmed" | "partial" | "pending";
+  confirmedCount: number;
+  expectedCount: number;
+  confirmedTotal: number;
+  remainingAmount: number;
+}
+
+export interface TransferOverdueAlert {
+  transferId: string;
+  transferName: string;
+  direction: "in" | "out";
+  overdueCount: number;
+  confirmedCount: number;
 }

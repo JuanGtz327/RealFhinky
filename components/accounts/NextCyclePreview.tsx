@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { formatMXN, formatMonthLabel } from "@/lib/utils/formatters";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { ChevronLeft, ChevronRight, Scissors, CalendarRange, ShoppingBag, ArrowDownLeft, Tag, CheckCircle2, AlertCircle, Undo2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Scissors, CalendarRange, ShoppingBag, ArrowDownLeft, Tag, CheckCircle2, AlertCircle, Undo2, Repeat } from "lucide-react";
 import { computePaymentStatus } from "@/lib/domain/payments";
 import { ConfirmPaymentDialog } from "@/components/accounts/ConfirmPaymentDialog";
 import { ConfirmPaymentButton } from "@/components/accounts/ConfirmPaymentButton";
@@ -30,11 +30,20 @@ export interface NextCycleCreditItem {
   date: string;
 }
 
+export interface NextCycleRecurringItem {
+  chargeId: string;
+  name: string;
+  amount: number;
+  category?: string;
+  isConfirmed: boolean;
+}
+
 export interface BillingCycle {
   cycleMonth: string;
   msiItems: NextCycleMsiItem[];
   directItems: NextCycleDirectItem[];
   creditItems: NextCycleCreditItem[];
+  recurringItems?: NextCycleRecurringItem[];
   isCurrent: boolean;
   payment?: CyclePayment | null;
 }
@@ -52,10 +61,11 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }:
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const cycle = cycles[idx];
-  const charges = cycle.msiItems.reduce((s, i) => s + i.amount, 0) + cycle.directItems.reduce((s, i) => s + i.amount, 0);
+  const recurringTotal = (cycle.recurringItems ?? []).reduce((s, i) => s + i.amount, 0);
+  const charges = cycle.msiItems.reduce((s, i) => s + i.amount, 0) + cycle.directItems.reduce((s, i) => s + i.amount, 0) + recurringTotal;
   const credits = (cycle.creditItems ?? []).reduce((s, i) => s + i.amount, 0);
   const total = charges - credits;
-  const hasItems = cycle.msiItems.length > 0 || cycle.directItems.length > 0 || (cycle.creditItems ?? []).length > 0;
+  const hasItems = cycle.msiItems.length > 0 || cycle.directItems.length > 0 || (cycle.creditItems ?? []).length > 0 || (cycle.recurringItems ?? []).length > 0;
   const isPast   = cycle.cycleMonth < effectiveMonth;
   const isFuture = cycle.cycleMonth > effectiveMonth;
 
@@ -175,6 +185,25 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }:
                   : <StatusBadge variant="accent">Compra</StatusBadge>
                 }
                 <p className="font-mono text-sm text-[var(--color-foreground)] shrink-0 w-24 text-right">
+                  {formatMXN(item.amount)}
+                </p>
+              </div>
+            ))}
+            {(cycle.recurringItems ?? []).map((item, i) => (
+              <div key={`rc-${i}`} className="flex items-center justify-between gap-4 px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Repeat className="w-3.5 h-3.5 text-[var(--color-muted)] shrink-0" />
+                    <p className="text-sm font-medium text-[var(--color-foreground)] truncate">{item.name}</p>
+                  </div>
+                  <p className="text-xs text-[var(--color-muted)] mt-0.5 pl-5">
+                    {item.isConfirmed ? "Confirmado" : "Proyectado"}
+                  </p>
+                </div>
+                <StatusBadge variant={item.isConfirmed ? "ok" : "muted"}>
+                  {item.isConfirmed ? "✓" : "~"}
+                </StatusBadge>
+                <p className={`font-mono text-sm shrink-0 w-24 text-right ${item.isConfirmed ? "text-[var(--color-foreground)]" : "text-[var(--color-muted)]"}`}>
                   {formatMXN(item.amount)}
                 </p>
               </div>

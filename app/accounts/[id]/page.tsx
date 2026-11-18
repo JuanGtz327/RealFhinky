@@ -3,11 +3,13 @@ import { AccountsRepository } from "@/lib/repositories/accounts.repo";
 import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { MsiRepository } from "@/lib/repositories/msi.repo";
 import { CyclePaymentsRepository } from "@/lib/repositories/cycle-payments.repo";
+import { RecurringChargesRepository } from "@/lib/repositories/recurring-charges.repo";
+import { PlannedTransfersRepository } from "@/lib/repositories/planned-transfers.repo";
 import { notFound } from "next/navigation";
 import { format, addMonths, subMonths } from "date-fns";
 import { computeBillingPeriod } from "@/lib/utils/billing";
 import { getCreditUtilizationAlert, getCutDateAlert, getPaymentDateAlert, getAnnualFeeAlert } from "@/lib/utils/alerts";
-import { computeEffectiveMonth, computeBalanceDiscrepancy, computeCreditUtilization, computePaymentStatus } from "@/lib/domain";
+import { computeEffectiveMonth, computeBalanceDiscrepancy, computeCreditUtilization, computePaymentStatus, isChargeInBillingPeriod, computeBlendedCharge } from "@/lib/domain";
 import { getMsiProgress } from "@/lib/utils/msi";
 import { formatMXN } from "@/lib/utils/formatters";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -18,6 +20,8 @@ import { AccountTransactions } from "@/components/accounts/AccountTransactions";
 import { AccountMetaCredit } from "@/components/accounts/AccountMetaCredit";
 import { AccountMetaDebit } from "@/components/accounts/AccountMetaDebit";
 import { OpeningBalanceWizard } from "@/components/accounts/OpeningBalanceWizard";
+import { PlannedTransferCard } from "@/components/accounts/PlannedTransferCard";
+import { NewPlannedTransferButton } from "@/components/accounts/NewPlannedTransferButton";
 
 import Link from "next/link";
 import { Pencil, ChevronLeft, ChevronRight, CreditCard, CalendarRange, BarChart2, ArrowUpDown, AlertTriangle } from "lucide-react";
@@ -38,6 +42,8 @@ export default function AccountDetailPage({
   const txRepo   = new TransactionsRepository(db);
   const msiRepo  = new MsiRepository(db);
   const cpRepo   = new CyclePaymentsRepository(db);
+  const chargeRepo = new RecurringChargesRepository(db);
+  const ptRepo = new PlannedTransfersRepository(db);
 
   const account = accRepo.findById(params.id);
   if (!account) notFound();
@@ -50,6 +56,16 @@ export default function AccountDetailPage({
   // If today is past the cut date, that billing cycle has already closed.
   // Use the NEXT month as the effective reference so paid/remaining counts correctly.
   const effectiveMonth = computeEffectiveMonth(account.cut_date);
+
+  // ── Cargos recurrentes (solo crédito) ───────────────────
+  const accountCharges = isCredit ? chargeRepo.findByAccount(params.id, true) : [];
+
+  // ── Transferencias planificadas (solo débito) ────────────
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const accountTransfers = isDebit ? ptRepo.findByAccount(params.id, true) : [];
+  const ptEntriesMap = isDebit
+    ? ptRepo.findEntriesByMonthGrouped(currentMonth)
+    : new Map();
 
   // ── Pagos confirmados por ciclo ──────────────────────────
   const cyclePayments = isCredit ? cpRepo.findByAccount(params.id) : [];
@@ -147,6 +163,21 @@ export default function AccountDetailPage({
                tx.date >= periodStart && tx.date <= periodEnd
     );
 
+    // Recurring charges in this billing period
+    const recurringItems = accountCharges
+      .filter((ch) => isChargeInBillingPeriod(ch, periodStart, periodEnd))
+      .map((ch) => {
+        const entries = chargeRepo.findEntriesByChargeAndMonth(ch.id, cycleMonth);
+        const result = computeBlendedCharge(ch, entries, cycleMonth);
+        return {
+          chargeId: ch.id,
+          name: ch.name,
+          amount: result.blendedTotal > 0 ? result.blendedTotal : ch.base_amount,
+          category: ch.category ?? undefined,
+          isConfirmed: result.confirmedCount > 0,
+        };
+      });
+
     return {
       cycleMonth,
       msiItems: msiByMonth[cycleMonth] ?? [],
@@ -161,6 +192,7 @@ export default function AccountDetailPage({
       creditItems: allTx
         .filter((tx) => tx.type === "transfer_in" && tx.date >= periodStart && tx.date <= periodEnd)
         .map((tx) => ({ merchant: tx.merchant ?? tx.description ?? "Abono / Devolución", amount: tx.amount, date: tx.date })),
+      recurringItems,
       isCurrent: cycleMonth === effectiveMonth,
       payment: paymentByMonth.get(cycleMonth) ?? null,
     };
@@ -329,6 +361,36 @@ export default function AccountDetailPage({
               accountId={account.id}
             />
           </div>
+        </section>
+      )}
+
+      {/* Transferencias planificadas (solo débito) */}
+      {isDebit && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-[var(--color-navbar)] flex items-center gap-2">
+              <ArrowUpDown className="w-4 h-4 text-[var(--color-accent)]" />
+              Transferencias planificadas
+            </h2>
+            <NewPlannedTransferButton accountId={account.id} />
+          </div>
+
+          {accountTransfers.length === 0 ? (
+            <div className="flex items-center justify-center py-8 rounded-lg border border-dashed border-[var(--color-border)]">
+              <p className="text-sm text-[var(--color-muted)]">Sin transferencias planificadas</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {accountTransfers.map((transfer) => (
+                <PlannedTransferCard
+                  key={transfer.id}
+                  transfer={transfer}
+                  currentMonth={currentMonth}
+                  entries={ptEntriesMap.get(transfer.id) ?? []}
+                />
+              ))}
+            </div>
+          )}
         </section>
       )}
 
