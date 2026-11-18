@@ -7,9 +7,10 @@ import { Check, Clock, TrendingUp } from "lucide-react";
 interface Props {
   rows: AmortizationRow[];
   onConfirmPayment?: (month: string) => void;
+  paymentDueDate?: number;
 }
 
-export function LoanAmortizationTable({ rows, onConfirmPayment }: Props) {
+export function LoanAmortizationTable({ rows, onConfirmPayment, paymentDueDate }: Props) {
   const totalPrincipal = rows.reduce((s, r) => s + r.principal, 0);
   const totalInterest = rows.reduce((s, r) => s + r.interest, 0);
   const totalPayment = rows.reduce((s, r) => s + r.payment, 0);
@@ -45,7 +46,11 @@ export function LoanAmortizationTable({ rows, onConfirmPayment }: Props) {
             return (
               <tr key={row.month} className={rowClass}>
                 <td className="px-3 py-2 text-[var(--color-muted)] text-xs">{row.paymentNumber}</td>
-                <td className={monthClass}>{row.month}</td>
+                <td className={monthClass}>
+                  {paymentDueDate
+                    ? `${row.month}-${String(paymentDueDate).padStart(2, "0")}`
+                    : row.month}
+                </td>
                 <td className="px-3 py-2 text-right font-mono text-xs text-[var(--color-foreground)]">
                   {row.actualPayment !== undefined && row.actualPayment !== row.payment ? (
                     <span className="flex items-center justify-end gap-1">

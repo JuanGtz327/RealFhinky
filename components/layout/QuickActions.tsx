@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, CreditCard, ArrowLeftRight, TrendingUp } from "lucide-react";
+import { Plus, CreditCard, ArrowLeftRight, TrendingUp, Landmark, Receipt } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { AccountForm } from "@/components/accounts/AccountForm";
@@ -132,6 +132,7 @@ export function QuickActions() {
         onClose={() => setActive(null)}
         title="Nueva cuenta"
         description="Tarjeta, préstamo o cuenta de débito"
+        icon={<Landmark className="w-4 h-4" />}
       >
         <AccountForm mode="create" onSuccess={handleSuccess} />
       </FormDialog>
@@ -141,6 +142,7 @@ export function QuickActions() {
         onClose={() => setActive(null)}
         title="Nueva transacción"
         description="Las compras a MSI se distribuyen automáticamente"
+        icon={<Receipt className="w-4 h-4" />}
       >
         <TransactionForm accounts={accounts} onSuccess={handleSuccess} />
       </FormDialog>
@@ -150,6 +152,7 @@ export function QuickActions() {
         onClose={() => setActive(null)}
         title="Nueva fuente de ingreso"
         description="Nómina, freelance, renta u otro ingreso recurrente"
+        icon={<TrendingUp className="w-4 h-4" />}
       >
         <IncomeSourceForm mode="create" onSuccess={handleSuccess} />
       </FormDialog>

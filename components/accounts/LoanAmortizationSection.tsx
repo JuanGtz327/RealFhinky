@@ -11,6 +11,7 @@ interface Props {
   currentBalance: number;
   monthlyPayment: number;
   annualRate: number;
+  paymentDueDate?: number;
 }
 
 export function LoanAmortizationSection({
@@ -19,6 +20,7 @@ export function LoanAmortizationSection({
   currentBalance,
   monthlyPayment,
   annualRate,
+  paymentDueDate,
 }: Props) {
   const [confirmMonth, setConfirmMonth] = useState<string | null>(null);
 
@@ -27,6 +29,7 @@ export function LoanAmortizationSection({
       <LoanAmortizationTable
         rows={rows}
         onConfirmPayment={(month) => setConfirmMonth(month)}
+        paymentDueDate={paymentDueDate}
       />
       {confirmMonth && (
         <ConfirmLoanPaymentDialog

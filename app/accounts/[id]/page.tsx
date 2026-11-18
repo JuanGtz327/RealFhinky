@@ -361,6 +361,7 @@ export default function AccountDetailPage({
             currentBalance={account.current_balance}
             monthlyPayment={loanKpis.monthlyPayment}
             annualRate={loanKpis.interestRate}
+            paymentDueDate={account.payment_due_date}
           />
         </section>
       )}

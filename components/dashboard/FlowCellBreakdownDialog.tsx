@@ -2,7 +2,7 @@
 
 import { FormDialog } from "@/components/ui/form-dialog";
 import { formatMXN, formatMonthLabel, formatDate } from "@/lib/utils/formatters";
-import { CheckCircle2, Circle, Repeat, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { CheckCircle2, Circle, Repeat, ArrowDownLeft, ArrowUpRight, TrendingUp, BarChart3 } from "lucide-react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FlowRow } from "@/lib/domain/types";
@@ -63,6 +63,7 @@ export function FlowCellBreakdownDialog({ open, onOpenChange, type, month, row, 
       onClose={() => onOpenChange(false)}
       title={title}
       description={`Total: ${formatMXN(total)}`}
+      icon={type === "ingresos" ? <TrendingUp className="w-4 h-4" /> : <BarChart3 className="w-4 h-4" />}
       className="sm:max-w-md"
     >
       {type === "gastos" ? (

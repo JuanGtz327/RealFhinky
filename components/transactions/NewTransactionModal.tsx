@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Receipt } from "lucide-react";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { motion } from "motion/react";
@@ -34,6 +34,7 @@ export function NewTransactionModal({
         onClose={() => setOpen(false)}
         title="Nueva transacción"
         description="Las compras a MSI se distribuyen automáticamente"
+        icon={<Receipt className="w-4 h-4" />}
       >
         <TransactionForm
           accounts={accounts}

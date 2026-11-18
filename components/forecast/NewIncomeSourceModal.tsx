@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, TrendingUp } from "lucide-react";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { IncomeSourceForm } from "@/components/forecast/IncomeSourceForm";
 import { motion } from "motion/react";
@@ -36,6 +36,7 @@ export function NewIncomeSourceModal({ debitAccounts = [] }: Props) {
         onClose={() => setOpen(false)}
         title="Nueva fuente de ingreso"
         description="Nómina, freelance, renta u otro ingreso recurrente"
+        icon={<TrendingUp className="w-4 h-4" />}
       >
         <IncomeSourceForm mode="create" onSuccess={() => setOpen(false)} debitAccounts={debitAccounts} />
       </FormDialog>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Repeat } from "lucide-react";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { RecurringChargeForm } from "@/components/subscriptions/RecurringChargeForm";
 import { useToast } from "@/components/kokonutui/promise-toast";
@@ -39,7 +40,7 @@ export function NewRecurringChargeModal({ open, onClose, accounts, initial }: Ne
   };
 
   return (
-    <FormDialog open={open} onClose={onClose} title={isEdit ? "Editar suscripción" : "Nueva suscripción / cargo"}>
+    <FormDialog open={open} onClose={onClose} title={isEdit ? "Editar suscripción" : "Nueva suscripción / cargo"} icon={<Repeat className="w-4 h-4" />}>
       <RecurringChargeForm accounts={accounts} initial={initial} onSave={handleSave} onCancel={onClose} />
     </FormDialog>
   );

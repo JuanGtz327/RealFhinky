@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { ArrowUpDown } from "lucide-react";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { PlannedTransferForm } from "@/components/accounts/PlannedTransferForm";
 import { useToast } from "@/components/kokonutui/promise-toast";
@@ -45,7 +46,7 @@ export function NewPlannedTransferModal({ open, onClose, accountId, defaultDirec
     : (dir === "in" ? "Nuevo abono planificado" : "Nueva salida planificada");
 
   return (
-    <FormDialog open={open} onClose={onClose} title={title}>
+    <FormDialog open={open} onClose={onClose} title={title} icon={<ArrowUpDown className="w-4 h-4" />}>
       <PlannedTransferForm accountId={accountId} initial={initial} defaultDirection={defaultDirection} onSave={handleSave} onCancel={onClose} />
     </FormDialog>
   );

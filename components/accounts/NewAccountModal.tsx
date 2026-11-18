@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Landmark } from "lucide-react";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { AccountForm } from "@/components/accounts/AccountForm";
 import { motion } from "motion/react";
@@ -26,6 +26,7 @@ export function NewAccountModal() {
         onClose={() => setOpen(false)}
         title="Nueva cuenta"
         description="Agrega una tarjeta, préstamo o cuenta de débito"
+        icon={<Landmark className="w-4 h-4" />}
       >
         <AccountForm mode="create" onSuccess={() => setOpen(false)} />
       </FormDialog>
