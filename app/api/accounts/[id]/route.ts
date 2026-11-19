@@ -16,7 +16,6 @@ const UpdateAccountSchema = z.object({
   annual_fee: z.number().min(0).optional(),
   annual_fee_date: z.string().optional(),
   is_active: z.boolean().optional(),
-  flow_adjustment: z.number().nullable().optional(),
   loan_original_amount: z.number().positive().optional(),
   loan_interest_rate: z.number().min(0).optional(),
   loan_term_months: z.number().int().positive().optional(),

@@ -4,6 +4,7 @@ import { formatMXN } from "@/lib/utils/formatters";
 import type { AmortizationRow } from "@/lib/domain/types";
 import { Check, Clock, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePreferences } from "@/lib/context/preferences";
 
 interface Props {
   rows: AmortizationRow[];
@@ -12,6 +13,8 @@ interface Props {
 }
 
 export function LoanAmortizationTable({ rows, onConfirmPayment, paymentDueDate }: Props) {
+  const { preferences } = usePreferences();
+  const allowEarly = preferences.allow_early_confirmation === "true";
   const totalPrincipal = rows.reduce((s, r) => s + r.principal, 0);
   const totalInterest = rows.reduce((s, r) => s + r.interest, 0);
   const totalPayment = rows.reduce((s, r) => s + r.payment, 0);
@@ -76,7 +79,7 @@ export function LoanAmortizationTable({ rows, onConfirmPayment, paymentDueDate }
                     <span className="inline-flex items-center gap-1 text-[var(--color-success)] text-xs">
                       <Check className="w-3 h-3" /> Pagado
                     </span>
-                  ) : row.isCurrent ? (
+                  ) : (row.isCurrent || allowEarly) ? (
                     onConfirmPayment ? (
                       <Button onClick={() => onConfirmPayment(row.month)}>
                         Confirmar

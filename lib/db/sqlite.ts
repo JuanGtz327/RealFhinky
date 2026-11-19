@@ -93,6 +93,22 @@ function getConnection(): Database.Database {
     if (!rceColumns.some((c) => c.name === "transaction_id")) {
       instance.exec("ALTER TABLE recurring_charge_entries ADD COLUMN transaction_id TEXT REFERENCES transactions(id) ON DELETE SET NULL");
     }
+    // Add income_entry_id and cycle_payment_id to transactions if missing
+    const txCols = instance.pragma("table_info(transactions)") as { name: string }[];
+    if (!txCols.some((c) => c.name === "income_entry_id")) {
+      instance.exec("ALTER TABLE transactions ADD COLUMN income_entry_id TEXT REFERENCES income_entries(id) ON DELETE SET NULL");
+    }
+    if (!txCols.some((c) => c.name === "cycle_payment_id")) {
+      instance.exec("ALTER TABLE transactions ADD COLUMN cycle_payment_id TEXT REFERENCES cycle_payments(id) ON DELETE SET NULL");
+    }
+    // Add paid_from_account_id to cycle_payments if missing
+    const cpCols = instance.pragma("table_info(cycle_payments)") as { name: string }[];
+    if (!cpCols.some((c) => c.name === "paid_from_account_id")) {
+      instance.exec("ALTER TABLE cycle_payments ADD COLUMN paid_from_account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL");
+    }
+    if (!cpCols.some((c) => c.name === "confirmed_cycle_total")) {
+      instance.exec("ALTER TABLE cycle_payments ADD COLUMN confirmed_cycle_total REAL");
+    }
     // Add loan columns to accounts if missing
     const accLoanCols = instance.pragma("table_info(accounts)") as { name: string }[];
     const loanColDefs: [string, string][] = [

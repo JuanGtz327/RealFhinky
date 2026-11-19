@@ -86,9 +86,10 @@ export function IncomeSourceForm({ initial, mode = "create", onSuccess, debitAcc
     startTransition(async () => {
       const toastId = toast({ title: "Guardando fuente de ingreso…", status: "loading" });
       try {
-        const url    = mode === "edit" ? `/api/income/sources` : "/api/income/sources";
+        const url    = "/api/income/sources";
         const method = mode === "edit" ? "PUT" : "POST";
-        const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(parsed.data) });
+        const payload = mode === "edit" && initial?.id ? { ...parsed.data, id: initial.id } : parsed.data;
+        const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         if (!res.ok) throw new Error(await res.text());
         const { source } = await res.json();
         update(toastId, { title: "Fuente de ingreso guardada", body: source?.name ?? "", status: "success" });

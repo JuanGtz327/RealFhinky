@@ -49,10 +49,12 @@ export class IncomeRepository {
     const allowed = ["name", "frequency", "base_amount", "is_variable", "is_active", "start_date", "custom_interval_days", "account_id"];
     const fields: string[] = [];
     const values: unknown[] = [];
+    const boolKeys = new Set(["is_variable", "is_active"]);
     for (const key of allowed) {
       if (key in input) {
         fields.push(`${key} = ?`);
-        values.push((input as Record<string, unknown>)[key] ?? null);
+        const raw = (input as Record<string, unknown>)[key] ?? null;
+        values.push(boolKeys.has(key) && typeof raw === "boolean" ? (raw ? 1 : 0) : raw);
       }
     }
     if (fields.length === 0) return this.findSourceById(id);

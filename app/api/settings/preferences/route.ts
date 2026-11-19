@@ -3,10 +3,7 @@ import { getDb } from "@/lib/db";
 import { PreferencesRepository, DEFAULT_PREFERENCES } from "@/lib/repositories/preferences.repo";
 import { z } from "zod";
 
-const UpdateSchema = z.record(
-  z.enum(Object.keys(DEFAULT_PREFERENCES) as [string, ...string[]]),
-  z.string()
-);
+const UpdateSchema = z.record(z.string(), z.string());
 
 export async function GET() {
   try {

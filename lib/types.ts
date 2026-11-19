@@ -43,6 +43,8 @@ export interface Transaction {
   msi_residual?: number;
   msi_start_date?: string;
   notes?: string;
+  income_entry_id?: string | null;
+  cycle_payment_id?: string | null;
   created_at: string;
 }
 
@@ -96,6 +98,8 @@ export interface CyclePayment {
   amount_paid: number;
   paid_date: string;
   notes?: string;
+  paid_from_account_id?: string | null;
+  confirmed_cycle_total?: number | null;
   created_at: string;
 }
 

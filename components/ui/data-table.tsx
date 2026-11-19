@@ -15,7 +15,7 @@ export type ColumnAlign = "left" | "right" | "center";
 
 export interface Column<T> {
   key: string;
-  header: string;
+  header: React.ReactNode;
   align?: ColumnAlign;
   className?: string;
   render?: (value: unknown, row: T) => React.ReactNode;

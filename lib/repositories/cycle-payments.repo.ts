@@ -9,12 +9,15 @@ export interface CreateCyclePaymentInput {
   amount_paid: number;
   paid_date: string;
   notes?: string;
+  paid_from_account_id?: string | null;
+  confirmed_cycle_total?: number | null;
 }
 
 export interface UpdateCyclePaymentInput {
   amount_paid?: number;
   paid_date?: string;
   notes?: string;
+  confirmed_cycle_total?: number | null;
 }
 
 export class CyclePaymentsRepository {
@@ -48,9 +51,9 @@ export class CyclePaymentsRepository {
     const id = randomUUID();
     const now = new Date().toISOString();
     this.db.execute(
-      `INSERT INTO cycle_payments (id, account_id, cycle_month, amount_due, amount_paid, paid_date, notes, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, input.account_id, input.cycle_month, input.amount_due, input.amount_paid, input.paid_date, input.notes ?? null, now]
+      `INSERT INTO cycle_payments (id, account_id, cycle_month, amount_due, amount_paid, paid_date, notes, paid_from_account_id, confirmed_cycle_total, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, input.account_id, input.cycle_month, input.amount_due, input.amount_paid, input.paid_date, input.notes ?? null, input.paid_from_account_id ?? null, input.confirmed_cycle_total ?? null, now]
     );
     return this.findByAccountAndMonth(input.account_id, input.cycle_month)!;
   }
@@ -61,6 +64,7 @@ export class CyclePaymentsRepository {
     if (input.amount_paid !== undefined) { fields.push("amount_paid = ?"); values.push(input.amount_paid); }
     if (input.paid_date !== undefined) { fields.push("paid_date = ?"); values.push(input.paid_date); }
     if (input.notes !== undefined) { fields.push("notes = ?"); values.push(input.notes); }
+    if (input.confirmed_cycle_total !== undefined) { fields.push("confirmed_cycle_total = ?"); values.push(input.confirmed_cycle_total); }
     if (fields.length === 0) {
       const rows = this.db.query<CyclePayment>("SELECT * FROM cycle_payments WHERE id = ?", [id]);
       return this.deserialize(rows[0]);

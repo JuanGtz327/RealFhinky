@@ -29,6 +29,9 @@ Cambiar solo esos archivos para re-tematizar toda la app.
 --color-danger      #DC2626   Rojo — negativo, urgente, deuda alta
 ```
 
+## Documentación por vista
+Para el comportamiento detallado de cada vista (columnas, modos temporales, casos especiales), ver **[docs/views.md](./docs/views.md)**.
+
 ## Dominio: Decisiones clave
 - **MSI**: Se expanden en `msi_installments` al guardar la transacción.
   - Cuota base = `Math.round(total / meses * 100) / 100` (precisión decimal, NO floor)
@@ -42,7 +45,7 @@ Cambiar solo esos archivos para re-tematizar toda la app.
   - **Regla**: solo `income` y `purchase` cuentan en el flujo del dashboard; `transfer_*` son neutrales (evitar double-count).
 - **Transferencias entre cuentas propias**: No cuentan como gasto ni ingreso en el dashboard global (evitar double-count)
 - **Columnas de préstamos**: Dinámicas — se genera una columna por cada cuenta `type=loan` activa
-- **Capital Fin Mes**: `Capital Inicio + Ingresos Totales - Gastos Totales`
+- **Capital Fin Mes**: `Capital Inicio + Por Cobrar - Gastos Totales`
 - **Capital Inicio (dashboard flow)**: Para el mes actual, anclar a `patrimonioActual` (suma de saldos reales de cuentas débito). Para meses futuros, proyectar acumulado.
 - **Proyección de ingresos futuros**: Se calcula desde `income_sources` usando `projectMonthlyIncome(source)`:
   - weekly → base × 4; biweekly → base × 2; monthly → base × 1; custom → base × round(30/days)
@@ -68,6 +71,9 @@ Cambiar solo esos archivos para re-tematizar toda la app.
   - **Status derivado** (NO almacenado): `amount_paid >= amount_due` → `"paid"` (verde); `0 < amount_paid < amount_due` → `"partial"` (amarillo); sin registro → `"pending"`. La función `computePaymentStatus()` en `lib/domain/payments.ts` es la única fuente de esta lógica.
   - **NO auto-detectar**: registrar un `transfer_in` en la cuenta NO marca el ciclo como pagado. Son dos acciones independientes. El `transfer_in` solo afecta el saldo contable; la confirmación de pago es una declaración del usuario.
   - `paid_date`: fecha en que el usuario realizó el pago en su banco (puede diferir de la fecha del ciclo).
+  - `paid_from_account_id`: cuenta débito desde la que se pagó. Si existe, al confirmar se auto-crean `transfer_in` (crédito) + `transfer_out` (débito) con `cycle_payment_id` = id del pago. Estos se excluyen del flow table para evitar double-count.
+  - **Regla retroactiva de onboarding**: Al confirmar, se calcula el `effectiveMonth` de la tarjeta al momento de su `created_at`. Si `cycle_month < onboardingEffective`, el pago es retroactivo (el saldo de débito ya lo reflejaba al onboardear) → NO se crean auto-transacciones. Solo se crea el registro `cycle_payments` para tracking. Ciclos `>= onboardingEffective` sí crean transacciones.
+  - `confirmed_cycle_total`: total real del estado de cuenta del banco para ese ciclo. Cuando está presente (`!= null`), el flow table usa este valor en vez de calcular `purchases - credits + msi + recurring`. Es editable en `ConfirmPaymentDialog`. Se envía `null` cuando el usuario no modifica el total calculado por Finkhy (sin override). Patrón: `effectiveTotal = confirmed_cycle_total ?? computedTotal`.
 - **Cargos recurrentes (`recurring_charges`)**: Suscripciones y servicios periódicos vinculados a una cuenta (crédito o débito). Semántica:
   - Entidad independiente con `account_id` NOT NULL. Si se mueve a otra tarjeta, actualizar `account_id`. Si se cancela, poner `end_date` o `is_active = 0`.
   - Frecuencias por **meses** (no días): monthly=1, bimonthly=2, quarterly=3, semiannual=6, annual=12, custom=custom_interval_months. Diferencia intencional con income_sources que usa días.
@@ -75,7 +81,7 @@ Cambiar solo esos archivos para re-tematizar toda la app.
   - Para tarjetas de crédito: los cargos recurrentes se proyectan usando **billing period** (`isChargeInBillingPeriod`), NO mes calendario. Regla global de billing period aplica.
   - Para cuentas débito: los cargos recurrentes se proyectan por mes calendario.
   - **Confirmación manual**: NO auto-match contra transacciones reales. El usuario confirma explícitamente cada cargo via `recurring_charge_entries`.
-  - En el flow table, los cargos recurrentes se suman al total de Tarjetas por tarjeta: `tarjetas += purchases + msi + recurringCharges + untracked + flowAdjustment`.
+  - En el flow table, los cargos recurrentes se suman al total de Tarjetas por tarjeta: `tarjetas += confirmed_cycle_total ?? (purchases + msi + recurringCharges - credits)`.
   - Temporal: mes actual = remaining-only (no confirmados), futuro = blended, pasado = solo confirmados.
 - **Transferencias planificadas (`planned_transfers`)**: Movimientos de dinero esperados asociados a una cuenta débito. Semántica:
   - `direction`: `"in"` = dinero que espero recibir (alimenta Abonos en flow), `"out"` = dinero que planeo enviar (alimenta Transferencias en flow).
@@ -98,7 +104,8 @@ Cambiar solo esos archivos para re-tematizar toda la app.
 - `income_sources` → columna `custom_interval_days INTEGER` (para frecuencia custom)
 - `user_preferences` → tabla nueva (key TEXT PK, value TEXT) para preferencias UI
 - `UpdateAccountInput` incluye `opening_balance_carryover?: number`
-- `cycle_payments` → tabla nueva. Columnas: `id`, `account_id`, `cycle_month` (YYYY-MM), `amount_due`, `amount_paid`, `paid_date`, `notes`, `created_at`. UNIQUE en `(account_id, cycle_month)`.
+- `cycle_payments` → tabla nueva. Columnas: `id`, `account_id`, `cycle_month` (YYYY-MM), `amount_due`, `amount_paid`, `paid_date`, `notes`, `paid_from_account_id`, `confirmed_cycle_total REAL`, `created_at`. UNIQUE en `(account_id, cycle_month)`.
+- `accounts.flow_adjustment` → columna deprecada, no se lee ni escribe. Reemplazada por `cycle_payments.confirmed_cycle_total` a nivel de ciclo.
 - `recurring_charges` → tabla nueva. Columnas: `id`, `name`, `account_id` (FK NOT NULL), `frequency`, `base_amount`, `is_variable`, `is_active`, `start_date`, `end_date`, `custom_interval_months`, `category`, `notes`, `created_at`.
 - `recurring_charge_entries` → tabla nueva. Columnas: `id`, `recurring_charge_id` (FK), `date`, `amount`, `notes`, `created_at`.
 - `planned_transfers` → tabla nueva. Columnas: `id`, `name`, `account_id` (FK NOT NULL), `direction` (in/out), `frequency`, `base_amount`, `is_variable`, `is_active`, `start_date`, `end_date`, `custom_interval_days`, `notes`, `created_at`.
@@ -152,7 +159,7 @@ Cambiar solo esos archivos para re-tematizar toda la app.
 ## Dashboard Principal — 2 tablas principales + 3 widgets
 
 ### Tabla 1: Flujo General Mensual
-Mes | Capital Inicio | Nómina | Abonos | Ingresos Totales | Transferencias | Tarjetas | [Préstamo X dinámico]... | Gastos Totales | Capital Fin | % Variación
+Mes | Capital Inicio | Nómina | Abonos | Ingresos Totales | Por Cobrar | Transferencias | Tarjetas | [Préstamo X dinámico]... | Gastos Totales | Capital Fin | % Variación
 
 ### Tabla 2: Desglose por Tarjeta
 Año (colapsable) | Mes | [Tarjeta 1] | [Tarjeta 2] | ... | Total

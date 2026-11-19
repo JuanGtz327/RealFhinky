@@ -15,6 +15,12 @@ import { roundCents } from "@/lib/utils/msi";
 import { CreditCard, CalendarDays, StickyNote, X } from "lucide-react";
 import type { CyclePayment } from "@/lib/types";
 
+interface DebitAccountOption {
+  id: string;
+  name: string;
+  bank: string;
+}
+
 interface ConfirmPaymentDialogProps {
   open: boolean;
   onClose: () => void;
@@ -22,6 +28,7 @@ interface ConfirmPaymentDialogProps {
   cycleMonth: string;
   amountDue: number;
   existingPayment?: CyclePayment | null;
+  debitAccounts?: DebitAccountOption[];
 }
 
 export function ConfirmPaymentDialog({
@@ -31,23 +38,42 @@ export function ConfirmPaymentDialog({
   cycleMonth,
   amountDue,
   existingPayment,
+  debitAccounts = [],
 }: ConfirmPaymentDialogProps) {
   const router = useRouter();
   const today = new Date().toISOString().slice(0, 10);
-  const roundedDue = roundCents(amountDue);
+  const computedDue = roundCents(amountDue);
+
+  const [cycleTotal, setCycleTotal] = useState(
+    existingPayment?.confirmed_cycle_total != null
+      ? String(roundCents(existingPayment.confirmed_cycle_total))
+      : String(computedDue)
+  );
+  const parsedCycleTotal = roundCents(parseFloat(cycleTotal) || 0);
+  const totalDiffers = parsedCycleTotal !== computedDue;
 
   const [amountPaid, setAmountPaid] = useState(
     existingPayment
       ? String(roundCents(existingPayment.amount_paid))
-      : String(roundedDue)
+      : String(computedDue)
   );
   const [paidDate, setPaidDate] = useState(existingPayment?.paid_date ?? today);
   const [notes, setNotes] = useState(existingPayment?.notes ?? "");
+  const [paidFromAccountId, setPaidFromAccountId] = useState<string>(
+    existingPayment?.paid_from_account_id ?? debitAccounts[0]?.id ?? ""
+  );
   const [error, setError] = useState<string | null>(null);
 
   const monthLabel = formatMonthLabel(cycleMonth);
   const parsedAmount = roundCents(parseFloat(amountPaid) || 0);
-  const isPartial = parsedAmount > 0 && parsedAmount < roundedDue;
+  const isPartial = parsedAmount > 0 && parsedAmount < parsedCycleTotal;
+
+  const handleCycleTotalChange = (val: string) => {
+    setCycleTotal(val);
+    if (!existingPayment) {
+      setAmountPaid(val);
+    }
+  };
 
   const handleConfirm = async () => {
     setError(null);
@@ -55,11 +81,18 @@ export function ConfirmPaymentDialog({
     if (isNaN(paid) || paid <= 0) throw new Error("Monto inválido");
     if (!paidDate.match(/^\d{4}-\d{2}-\d{2}$/)) throw new Error("Fecha inválida");
 
+    const confirmedCycleTotal = totalDiffers ? parsedCycleTotal : null;
+
     if (existingPayment) {
       const res = await fetch(`/api/cycle-payments/${existingPayment.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount_paid: paid, paid_date: paidDate, notes: notes || undefined }),
+        body: JSON.stringify({
+          amount_paid: paid,
+          paid_date: paidDate,
+          notes: notes || undefined,
+          confirmed_cycle_total: confirmedCycleTotal,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -72,10 +105,12 @@ export function ConfirmPaymentDialog({
         body: JSON.stringify({
           account_id: accountId,
           cycle_month: cycleMonth,
-          amount_due: roundedDue,
+          amount_due: parsedCycleTotal,
           amount_paid: paid,
           paid_date: paidDate,
           notes: notes || undefined,
+          paid_from_account_id: paidFromAccountId || undefined,
+          confirmed_cycle_total: confirmedCycleTotal,
         }),
       });
       if (!res.ok) {
@@ -115,13 +150,32 @@ export function ConfirmPaymentDialog({
         </div>
 
         <div className="max-h-[75vh] overflow-y-auto">
-          {/* Total del ciclo */}
-          <div className="flex items-center justify-between px-5 py-4">
-            <span className="text-xs font-semibold text-[var(--color-foreground)] uppercase tracking-wider">Total del ciclo</span>
-            <span className="font-mono font-bold text-lg text-[var(--color-foreground)]">{formatMXN(roundedDue)}</span>
+          {/* Total del ciclo — editable */}
+          <div className="px-5 py-4">
+            <FormField label="Total del ciclo (estado de cuenta)">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[var(--color-muted)] pointer-events-none">$</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={cycleTotal}
+                  onChange={(e) => handleCycleTotalChange(e.target.value)}
+                  className="h-8 pl-6 font-mono font-bold"
+                />
+              </div>
+            </FormField>
+            <p className="text-xs text-[var(--color-muted)] mt-1.5">
+              Calculado por Finkhy: {formatMXN(computedDue)}
+              {totalDiffers && (
+                <span className="ml-1 text-[var(--color-warning)]">
+                  (dif: {formatMXN(Math.abs(parsedCycleTotal - computedDue))})
+                </span>
+              )}
+            </p>
           </div>
 
-          {/* Divisor naranja — encima de Monto pagado */}
+          {/* Divisor naranja */}
           <div className="h-[2px] mx-5 rounded-full bg-[var(--color-accent)]" />
 
           {/* Monto pagado + Fecha */}
@@ -156,9 +210,25 @@ export function ConfirmPaymentDialog({
                 />
               </div>
             </FormField>
+
+            {debitAccounts.length > 0 && !existingPayment && (
+              <FormField label="Pagado desde">
+                <select
+                  value={paidFromAccountId}
+                  onChange={(e) => setPaidFromAccountId(e.target.value)}
+                  className="select-field h-8 pl-2.5 pr-9 py-1"
+                >
+                  {debitAccounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name} · {acc.bank}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            )}
           </div>
 
-          {/* Divisor naranja — encima de Notas */}
+          {/* Divisor naranja */}
           <div className="h-[2px] mx-5 rounded-full bg-[var(--color-accent)]" />
 
           {/* Notas + SlideToConfirm */}

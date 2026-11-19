@@ -26,6 +26,27 @@ export async function GET() {
   }
 }
 
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const id = z.string().min(1).safeParse(body?.id);
+    if (!id.success) {
+      return NextResponse.json({ error: "ID requerido" }, { status: 400 });
+    }
+    const parsed = CreateSourceSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const data = parsed.data;
+    const repo = new IncomeRepository(getDb());
+    const source = repo.updateSource(id.data, data);
+    if (!source) return NextResponse.json({ error: "Fuente no encontrada" }, { status: 404 });
+    return NextResponse.json({ source });
+  } catch {
+    return NextResponse.json({ error: "Error al actualizar fuente de ingreso" }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

@@ -5,6 +5,7 @@ export const DEFAULT_PREFERENCES: Record<string, string> = {
   currency_code: "MXN",
   date_locale: "es-MX",
   theme: "light",
+  allow_early_confirmation: "false",
 };
 
 export class PreferencesRepository {

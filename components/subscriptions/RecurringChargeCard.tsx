@@ -8,6 +8,7 @@ import { NewRecurringChargeModal } from "@/components/subscriptions/NewRecurring
 import { formatMXN } from "@/lib/utils/formatters";
 import { isChargeExpectedInMonth, computeChargeConfirmationStatus } from "@/lib/domain";
 import { useToast } from "@/components/kokonutui/promise-toast";
+import { usePreferences } from "@/lib/context/preferences";
 import { Repeat, CheckCircle2, Clock, Minus, Calendar, AlertTriangle, Pencil, Trash2 } from "lucide-react";
 import type { RecurringCharge, RecurringChargeEntry, Account } from "@/lib/types";
 
@@ -31,6 +32,8 @@ interface RecurringChargeCardProps {
 export function RecurringChargeCard({ charge, currentMonth, entries, accountName, accounts }: RecurringChargeCardProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { preferences } = usePreferences();
+  const allowEarly = preferences.allow_early_confirmation === "true";
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -65,11 +68,13 @@ export function RecurringChargeCard({ charge, currentMonth, entries, accountName
   return (
     <>
       <div
-        onClick={() => isOverdue && setConfirmOpen(true)}
+        onClick={() => (isOverdue || (isUpcoming && allowEarly)) && setConfirmOpen(true)}
         className={[
           "rounded-xl card-elevated card-lift flex flex-col gap-3 p-4",
           isOverdue
             ? "border-2 border-[var(--color-warning)] cursor-pointer"
+            : (isUpcoming && allowEarly)
+            ? "border border-[var(--color-accent)] cursor-pointer"
             : "border border-[var(--color-border)]",
         ].join(" ")}
         style={isOverdue ? { animation: "overdueGlow 2s ease-in-out infinite" } : undefined}
@@ -149,10 +154,20 @@ export function RecurringChargeCard({ charge, currentMonth, entries, accountName
               <span>Confirmar</span>
             </button>
           ) : isUpcoming ? (
-            <div className="flex items-center gap-1 text-xs text-[var(--color-muted)]">
-              <Clock className="w-3.5 h-3.5" />
-              <span>Próximo día {chargeDay}</span>
-            </div>
+            allowEarly ? (
+              <button
+                onClick={(e) => { e.stopPropagation(); setConfirmOpen(true); }}
+                className="flex items-center gap-1 text-xs text-[var(--color-accent)] font-medium hover:underline transition-colors"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Confirmar</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1 text-xs text-[var(--color-muted)]">
+                <Clock className="w-3.5 h-3.5" />
+                <span>Próximo día {chargeDay}</span>
+              </div>
+            )
           ) : (
             <button
               onClick={(e) => { e.stopPropagation(); setConfirmOpen(true); }}

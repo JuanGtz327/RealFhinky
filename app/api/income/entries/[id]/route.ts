@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { IncomeRepository } from "@/lib/repositories/income.repo";
+import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import type { IncomeEntry } from "@/lib/types";
 import { z } from "zod";
 
@@ -15,8 +16,16 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const repo = new IncomeRepository(getDb());
-    repo.deleteEntry(params.id);
+    const db = getDb();
+    const txRepo = new TransactionsRepository(db);
+
+    const linkedTx = txRepo.findByIncomeEntryId(params.id);
+    if (linkedTx) {
+      txRepo.delete(linkedTx.id);
+    }
+
+    const incomeRepo = new IncomeRepository(db);
+    incomeRepo.deleteEntry(params.id);
     return new NextResponse(null, { status: 204 });
   } catch {
     return NextResponse.json({ error: "Error al eliminar entrada" }, { status: 500 });

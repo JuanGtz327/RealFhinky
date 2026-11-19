@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { computePaymentStatus } from "@/lib/domain/payments";
 import { ConfirmPaymentDialog } from "@/components/accounts/ConfirmPaymentDialog";
 import { ConfirmPaymentButton } from "@/components/accounts/ConfirmPaymentButton";
+import { usePreferences } from "@/lib/context/preferences";
 import type { CyclePayment } from "@/lib/types";
 
 export interface NextCycleMsiItem {
@@ -50,14 +51,23 @@ export interface BillingCycle {
   payment?: CyclePayment | null;
 }
 
+interface DebitAccountOption {
+  id: string;
+  name: string;
+  bank: string;
+}
+
 interface NextCyclePreviewProps {
   cycles: BillingCycle[];
   effectiveMonth: string;
   cutDate?: number;
   accountId: string;
+  debitAccounts?: DebitAccountOption[];
 }
 
-export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }: NextCyclePreviewProps) {
+export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId, debitAccounts = [] }: NextCyclePreviewProps) {
+  const { preferences } = usePreferences();
+  const allowEarly = preferences.allow_early_confirmation === "true";
   const defaultIndex = Math.max(0, cycles.findIndex((c) => c.isCurrent));
   const [idx, setIdx] = useState(defaultIndex);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -66,15 +76,17 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }:
   const recurringTotal = (cycle.recurringItems ?? []).reduce((s, i) => s + i.amount, 0);
   const charges = cycle.msiItems.reduce((s, i) => s + i.amount, 0) + cycle.directItems.reduce((s, i) => s + i.amount, 0) + recurringTotal;
   const credits = (cycle.creditItems ?? []).reduce((s, i) => s + i.amount, 0);
-  const total = charges - credits;
+  const computedTotal = charges - credits;
+  const confirmedTotal = cycle.payment?.confirmed_cycle_total ?? null;
+  const total = confirmedTotal ?? computedTotal;
+  const hasOverride = confirmedTotal != null && confirmedTotal !== computedTotal;
   const hasItems = cycle.msiItems.length > 0 || cycle.directItems.length > 0 || (cycle.creditItems ?? []).length > 0 || (cycle.recurringItems ?? []).length > 0;
   const isPast   = cycle.cycleMonth < effectiveMonth;
   const isFuture = cycle.cycleMonth > effectiveMonth;
 
   const footerLabel = isPast ? "Total facturado" : isFuture ? "Total proyectado" : "Total próximo corte";
   const payStatus = computePaymentStatus(cycle.payment, total);
-  // Solo ciclos cerrados (pasados) se pueden confirmar — el ciclo actual sigue abierto
-  const canConfirm = isPast;
+  const canConfirm = isPast || allowEarly;
 
   const handleDeletePayment = async () => {
     if (!cycle.payment) return;
@@ -125,7 +137,10 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }:
           {/* Fila 1: KPI a la izquierda, acción a la derecha — alineados por el alto del botón */}
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] uppercase tracking-wide text-white/50 leading-none mb-0.5">{footerLabel}</p>
+              <p className="text-[10px] uppercase tracking-wide text-white/50 leading-none mb-0.5">
+                {footerLabel}
+                {hasOverride && <span className="ml-1 text-[var(--color-warning)]">(banco)</span>}
+              </p>
               <span className="font-mono font-semibold text-[var(--color-accent)] leading-none">{formatMXN(total)}</span>
             </div>
             {canConfirm && (
@@ -287,6 +302,7 @@ export function NextCyclePreview({ cycles, effectiveMonth, cutDate, accountId }:
           cycleMonth={cycle.cycleMonth}
           amountDue={total}
           existingPayment={cycle.payment}
+          debitAccounts={debitAccounts}
         />
       )}
     </div>

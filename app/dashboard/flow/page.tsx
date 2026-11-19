@@ -164,7 +164,7 @@ function FlowContent({ year }: { year: string }) {
     }
 
     let tarjetas = 0;
-    const tarjetasBreakdown: { id: string; name: string; bank: string; purchases: number; msi: number; untracked?: number; flow_adjustment?: number | null; recurringCharges?: number; recurringChargesDetail?: { chargeId: string; name: string; amount: number; confirmed: boolean }[] }[] = [];
+    const tarjetasBreakdown: { id: string; name: string; bank: string; purchases: number; msi: number; credits?: number; untracked?: number; flow_adjustment?: number | null; recurringCharges?: number; recurringChargesDetail?: { chargeId: string; name: string; amount: number; confirmed: boolean }[] }[] = [];
     for (const acc of creditAccounts) {
       const { periodStart, periodEnd } = computeBillingPeriod(monthStr, acc.cut_date ?? null);
       const purchases = txRepo.sumPurchasesByPeriod(acc.id, periodStart, periodEnd);

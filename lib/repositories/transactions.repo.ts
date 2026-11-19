@@ -15,6 +15,8 @@ export interface CreateTransactionInput {
   is_msi?: boolean;
   msi_months?: number;
   notes?: string;
+  income_entry_id?: string | null;
+  cycle_payment_id?: string | null;
 }
 
 export class TransactionsRepository {
@@ -50,6 +52,21 @@ export class TransactionsRepository {
   findById(id: string): Transaction | null {
     const rows = this.db.query<Transaction>("SELECT * FROM transactions WHERE id = ?", [id]);
     return rows[0] ? this.deserialize(rows[0]) : null;
+  }
+
+  findByIncomeEntryId(incomeEntryId: string): Transaction | null {
+    const rows = this.db.query<Transaction>(
+      "SELECT * FROM transactions WHERE income_entry_id = ?",
+      [incomeEntryId]
+    );
+    return rows[0] ? this.deserialize(rows[0]) : null;
+  }
+
+  findByCyclePaymentId(cyclePaymentId: string): Transaction[] {
+    return this.db.query<Transaction>(
+      "SELECT * FROM transactions WHERE cycle_payment_id = ?",
+      [cyclePaymentId]
+    ).map(this.deserialize);
   }
 
   /** Calcula el delta que una transacción aplica al saldo de la cuenta. */
@@ -88,8 +105,8 @@ export class TransactionsRepository {
         `INSERT INTO transactions (
           id, account_id, date, merchant, description, amount, category, type,
           is_msi, msi_months, msi_monthly_amount, msi_residual, msi_start_date,
-          notes, created_at
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+          notes, income_entry_id, cycle_payment_id, created_at
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
           id, input.account_id, input.date,
           input.merchant ?? null, input.description ?? null,
@@ -98,7 +115,7 @@ export class TransactionsRepository {
           isMsi ? input.msi_months! : null,
           monthlyAmount, residual,
           isMsi ? msiStartDate : null,
-          input.notes ?? null, now,
+          input.notes ?? null, input.income_entry_id ?? null, input.cycle_payment_id ?? null, now,
         ]
       );
 
@@ -181,14 +198,17 @@ export class TransactionsRepository {
     return rows[0]?.total ?? 0;
   }
 
-  sumCreditsByPeriod(accountId: string, periodStart: string, periodEnd: string): number {
-    const rows = this.db.query<{ total: number }>(
-      `SELECT COALESCE(SUM(amount), 0) as total
-       FROM transactions
-       WHERE account_id = ? AND date >= ? AND date <= ?
-         AND type = 'transfer_in'`,
-      [accountId, periodStart, periodEnd]
-    );
+  sumCreditsByPeriod(accountId: string, periodStart: string, periodEnd: string, excludeCyclePayments = false): number {
+    const sql = excludeCyclePayments
+      ? `SELECT COALESCE(SUM(amount), 0) as total
+         FROM transactions
+         WHERE account_id = ? AND date >= ? AND date <= ?
+           AND type = 'transfer_in' AND cycle_payment_id IS NULL`
+      : `SELECT COALESCE(SUM(amount), 0) as total
+         FROM transactions
+         WHERE account_id = ? AND date >= ? AND date <= ?
+           AND type = 'transfer_in'`;
+    const rows = this.db.query<{ total: number }>(sql, [accountId, periodStart, periodEnd]);
     return rows[0]?.total ?? 0;
   }
 

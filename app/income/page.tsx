@@ -63,6 +63,7 @@ export default function IncomePage() {
                   status={status}
                   monthStr={CURRENT_MONTH}
                   today={TODAY}
+                  debitAccounts={debitAccounts}
                 />
               );
             })}

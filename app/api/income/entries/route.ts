@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { IncomeRepository } from "@/lib/repositories/income.repo";
+import { AccountsRepository } from "@/lib/repositories/accounts.repo";
+import { TransactionsRepository } from "@/lib/repositories/transactions.repo";
 import { z } from "zod";
 
 const CreateEntrySchema = z.object({
@@ -45,9 +47,41 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
-    const repo = new IncomeRepository(getDb());
-    const entry = repo.createEntry(parsed.data);
-    return NextResponse.json({ entry }, { status: 201 });
+
+    const db = getDb();
+    const incomeRepo = new IncomeRepository(db);
+    const entry = incomeRepo.createEntry(parsed.data);
+
+    let transactionCreated = false;
+
+    const source = incomeRepo.findSourceById(parsed.data.income_source_id);
+    if (source?.account_id) {
+      const accountRepo = new AccountsRepository(db);
+      const account = accountRepo.findById(source.account_id);
+
+      if (account) {
+        const paymentDate = parsed.data.date;
+        const accountCreatedAt = account.created_at.slice(0, 10);
+        const isRetroactive = paymentDate < accountCreatedAt;
+
+        if (!isRetroactive) {
+          const txRepo = new TransactionsRepository(db);
+          txRepo.create({
+            account_id: source.account_id,
+            date: parsed.data.date,
+            merchant: source.name,
+            amount: parsed.data.amount,
+            category: "Nómina",
+            type: "income",
+            income_entry_id: entry.id,
+            notes: parsed.data.notes,
+          });
+          transactionCreated = true;
+        }
+      }
+    }
+
+    return NextResponse.json({ entry, transactionCreated }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Error al registrar ingreso" }, { status: 500 });
   }

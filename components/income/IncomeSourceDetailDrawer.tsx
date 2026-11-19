@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmIncomeDialog } from "@/components/forecast/ConfirmIncomeDialog";
 import { computeExpectedPaymentDates } from "@/lib/domain/income";
 import { formatMXN } from "@/lib/utils/formatters";
+import { usePreferences } from "@/lib/context/preferences";
 import type { IncomeSource, IncomeEntry } from "@/lib/types";
 import type { ExpectedPaymentSlot } from "@/lib/domain/income";
 
@@ -28,6 +29,8 @@ interface Props {
 
 export function IncomeSourceDetailDrawer({ open, onOpenChange, source, entries, monthStr, today }: Props) {
   const router = useRouter();
+  const { preferences } = usePreferences();
+  const allowEarly = preferences.allow_early_confirmation === "true";
   const [confirmSlot, setConfirmSlot] = useState<ExpectedPaymentSlot | null>(null);
   const [deletingId, setDeletingId]   = useState<string | null>(null);
 
@@ -122,7 +125,8 @@ export function IncomeSourceDetailDrawer({ open, onOpenChange, source, entries, 
                       <Button
                         variant="outline"
                         className="text-xs shrink-0"
-                        disabled
+                        disabled={!allowEarly}
+                        onClick={() => setConfirmSlot(slot)}
                       >
                         Confirmar
                       </Button>

@@ -60,6 +60,10 @@ export default function AccountDetailPage({
   const isLoan   = account.type === "loan";
   const isDebit  = account.type === "debit"  || account.type === "investment";
 
+  const debitAccounts = isCredit
+    ? accRepo.findByType("debit").map((a) => ({ id: a.id, name: a.name, bank: a.bank }))
+    : [];
+
   const selectedYear = parseInt(searchParams.year ?? REAL_YEAR.toString(), 10);
 
   // If today is past the cut date, that billing cycle has already closed.
@@ -418,6 +422,7 @@ export default function AccountDetailPage({
               effectiveMonth={effectiveMonth}
               cutDate={account.cut_date ?? undefined}
               accountId={account.id}
+              debitAccounts={debitAccounts}
             />
           </div>
         </section>

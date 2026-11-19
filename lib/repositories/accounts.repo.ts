@@ -25,7 +25,6 @@ export interface CreateAccountInput {
 export interface UpdateAccountInput extends Partial<CreateAccountInput> {
   is_active?: boolean;
   opening_balance_carryover?: number;
-  flow_adjustment?: number | null;
 }
 
 export class AccountsRepository {
@@ -89,7 +88,7 @@ export class AccountsRepository {
     const allowed: (keyof UpdateAccountInput)[] = [
       "name", "type", "bank", "last4", "credit_limit", "current_balance",
       "yield_rate", "cut_date", "payment_due_date", "annual_fee",
-      "annual_fee_date", "is_active", "opening_balance_carryover", "flow_adjustment",
+      "annual_fee_date", "is_active", "opening_balance_carryover",
       "loan_original_amount", "loan_interest_rate", "loan_term_months",
       "loan_monthly_payment", "loan_start_date", "loan_payments_made",
     ];

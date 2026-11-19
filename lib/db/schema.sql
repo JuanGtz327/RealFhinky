@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS transactions (
   msi_residual       REAL,
   msi_start_date     TEXT,
   notes              TEXT,
+  income_entry_id    TEXT REFERENCES income_entries(id) ON DELETE SET NULL,
+  cycle_payment_id   TEXT REFERENCES cycle_payments(id) ON DELETE SET NULL,
   created_at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -100,9 +102,11 @@ CREATE TABLE IF NOT EXISTS cycle_payments (
   cycle_month  TEXT NOT NULL,
   amount_due   REAL NOT NULL,
   amount_paid  REAL NOT NULL,
-  paid_date    TEXT NOT NULL,
-  notes        TEXT,
-  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  paid_date             TEXT NOT NULL,
+  notes                 TEXT,
+  paid_from_account_id    TEXT REFERENCES accounts(id) ON DELETE SET NULL,
+  confirmed_cycle_total   REAL,
+  created_at              TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(account_id, cycle_month)
 );
 CREATE INDEX IF NOT EXISTS idx_cycle_payments_account ON cycle_payments(account_id);
